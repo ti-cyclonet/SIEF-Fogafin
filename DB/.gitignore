@@ -1,0 +1,9 @@
+# 📊 ARCHIVOS DE RESPALDO DE BD
+*.bak
+*.backup
+*.mdf
+*.ldf
+
+# 🖥️ ARCHIVOS DEL SISTEMA
+.DS_Store
+Thumbs.db

@@ -1,0 +1,8 @@
+{
+  "tasa": 0.115,
+  "unidad": "por mil",
+  "moneda": "COP",
+  "descripcion": "Tasa aplicada al capital suscrito para calcular el valor estimado de inscripción.",
+  "ultima_actualizacion": "2025-01-01",
+  "responsable": "Departamento de SSD"
+}
