@@ -229,12 +229,10 @@ namespace InscripcionEntidades
                     // -----------------------------------------------------------------------------
                     // 🔹 Obtener nombre del responsable asignado
                     string responsableQuery = @"
-                    SELECT TOP 1 u.TM03_Nombre
-                    FROM dbo.TM03_Usuario u
-                    INNER JOIN dbo.TM02_Area a ON u.TM03_TM02_Codigo = a.TM02_Codigo
-                    INNER JOIN dbo.TM01_Estado e ON a.TM02_Codigo = e.TM01_TM02_Codigo
-                    WHERE e.TM01_Codigo = 12
-                    ORDER BY u.TM03_Nombre";
+                    SELECT TOP 1 TM04_Nombre + ' ' + TM04_Apellidos
+                    FROM [SistemasComunes].[dbo].[TM04_Responsables]
+                    WHERE TM04_TM03_Codigo IN (59030, 52060) AND TM04_Activo = 1
+                    ORDER BY TM04_Nombre";
 
                     using (SqlCommand cmdResp = new SqlCommand(responsableQuery, conn))
                     {

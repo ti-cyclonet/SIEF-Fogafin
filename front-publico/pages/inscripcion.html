@@ -809,8 +809,8 @@
 
           const result = await response.json();
           const numeroTramite = `${result.TM08_Consecutivo}${result.TM08_TM01_Codigo}${result.TM08_Ano}`;
-          const responsable = result.TM03_Nombre;
-          const siglas = result.Departamento;
+          const responsable = result.TM03_Nombre || 'un funcionario SSD';
+          const siglas = result.Departamento || 'SSD';
 
           Swal.fire({
             icon: "success",

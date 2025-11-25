@@ -207,6 +207,22 @@ namespace InscripcionEntidades
 
                     _logger.LogWarning("✅ ADJUNTOS PROCESADOS - INICIANDO CORREOS");
 
+                    // Obtener nombre del responsable asignado
+                    string responsableQuery = @"
+                    SELECT TOP 1 TM04_Nombre + ' ' + TM04_Apellidos
+                    FROM [SistemasComunes].[dbo].[TM04_Responsables]
+                    WHERE TM04_TM03_Codigo IN (59030, 52060) AND TM04_Activo = 1
+                    ORDER BY TM04_Nombre";
+
+                    using (SqlCommand cmdResp = new SqlCommand(responsableQuery, conn))
+                    {
+                        object? respResult = await cmdResp.ExecuteScalarAsync();
+                        if (respResult != null && respResult != DBNull.Value)
+                        {
+                            nombreResponsableAsignado = respResult.ToString()!;
+                        }
+                    }
+
                     // Preparar datos para envío de correo
                     string representanteLegal = $"{data.NombreRep} {data.ApellidoRep}";
                     string entidadNombre = data.Nombre;
