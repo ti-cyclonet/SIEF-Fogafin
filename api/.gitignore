@@ -1,0 +1,11 @@
+# 🔐 ARCHIVOS CON CREDENCIALES
+../config/database.php
+config.php
+database.php
+
+# 📝 LOGS
+*.log
+
+# 🖥️ ARCHIVOS DEL SISTEMA
+.DS_Store
+Thumbs.db
