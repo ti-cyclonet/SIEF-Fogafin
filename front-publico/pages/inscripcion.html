@@ -413,6 +413,78 @@
           wrapper.style.removeProperty('border-color');
         }
       }
+      
+      function validateEmail(email) {
+        if (!email) return { valid: true };
+        const hasAt = email.includes('@');
+        const hasDot = email.includes('.');
+        const parts = email.split('@');
+        if (parts.length !== 2) return { valid: false, message: 'No cumple con el formato de un correo' };
+        const domain = parts[1];
+        const dotIndex = domain.lastIndexOf('.');
+        const hasValueAfterDot = dotIndex > -1 && dotIndex < domain.length - 1;
+        const isValid = hasAt && hasDot && hasValueAfterDot;
+        return {
+          valid: isValid,
+          message: isValid ? '' : 'No cumple con el formato de un correo'
+        };
+      }
+      
+      function showEmailError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        const container = field.closest('.col-md-8');
+        const existingError = container.querySelector('.email-error');
+        if (existingError) existingError.remove();
+        field.style.setProperty('border', '1px solid #dc3545', 'important');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'email-error';
+        errorDiv.style.color = '#dc3545';
+        errorDiv.style.fontSize = '0.875rem';
+        errorDiv.style.marginTop = '0.5rem';
+        errorDiv.textContent = message;
+        container.appendChild(errorDiv);
+      }
+      
+      function clearEmailError(fieldId) {
+        const field = document.getElementById(fieldId);
+        const container = field.closest('.col-md-8');
+        const existingError = container.querySelector('.email-error');
+        if (existingError) existingError.remove();
+        field.style.removeProperty('border');
+      }
+      
+      function validatePhone(phone) {
+        if (!phone) return { valid: true };
+        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        const isValid = cleanPhone.length <= 10 && cleanPhone === phone;
+        return {
+          valid: isValid,
+          message: isValid ? '' : 'Máximo 10 dígitos, solo números'
+        };
+      }
+      
+      function showPhoneError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        const container = field.closest('.col-md-8');
+        const existingError = container.querySelector('.phone-error');
+        if (existingError) existingError.remove();
+        field.style.setProperty('border', '1px solid #dc3545', 'important');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'phone-error';
+        errorDiv.style.color = '#dc3545';
+        errorDiv.style.fontSize = '0.875rem';
+        errorDiv.style.marginTop = '0.5rem';
+        errorDiv.textContent = message;
+        container.appendChild(errorDiv);
+      }
+      
+      function clearPhoneError(fieldId) {
+        const field = document.getElementById(fieldId);
+        const container = field.closest('.col-md-8');
+        const existingError = container.querySelector('.phone-error');
+        if (existingError) existingError.remove();
+        field.style.removeProperty('border');
+      }
 
       function formatearMoneda(valor) {
         return "$ " + Number(valor).toLocaleString("es-CO", {
@@ -508,11 +580,50 @@
           });
         }
       });
+      
+      // Configurar validación de emails
+      const emailFields = ['correoNoti', 'correoRepresentante', 'correoResponsable'];
+      emailFields.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+          field.addEventListener('change', () => {
+            clearEmailError(id);
+            const validation = validateEmail(field.value.trim());
+            if (!validation.valid) {
+              showEmailError(id, validation.message);
+            }
+          });
+        }
+      });
+      
+      // Configurar validación de teléfonos
+      const phoneFields = ['telefonoRep', 'telefonoResponsable'];
+      phoneFields.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+          field.addEventListener('input', (e) => {
+            // Solo permitir números
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+            // Limitar a 10 dígitos
+            if (e.target.value.length > 10) {
+              e.target.value = e.target.value.slice(0, 10);
+            }
+          });
+          field.addEventListener('change', () => {
+            clearPhoneError(id);
+            const validation = validatePhone(field.value.trim());
+            if (!validation.valid) {
+              showPhoneError(id, validation.message);
+            }
+          });
+        }
+      });
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
         let hasFileErrors = false;
+        let hasEmailErrors = false;
         
         Object.keys(fileValidations).forEach(fieldId => {
           const fileInput = document.getElementById(fieldId);
@@ -533,7 +644,33 @@
           }
         });
         
-        if (hasFileErrors || !form.checkValidity()) {
+        // Validar emails en submit
+        emailFields.forEach(fieldId => {
+          const field = document.getElementById(fieldId);
+          if (field) {
+            clearEmailError(fieldId);
+            const validation = validateEmail(field.value.trim());
+            if (!validation.valid) {
+              hasEmailErrors = true;
+              showEmailError(fieldId, validation.message);
+            }
+          }
+        });
+        
+        // Validar teléfonos en submit
+        phoneFields.forEach(fieldId => {
+          const field = document.getElementById(fieldId);
+          if (field) {
+            clearPhoneError(fieldId);
+            const validation = validatePhone(field.value.trim());
+            if (!validation.valid) {
+              hasEmailErrors = true;
+              showPhoneError(fieldId, validation.message);
+            }
+          }
+        });
+        
+        if (hasFileErrors || hasEmailErrors || !form.checkValidity()) {
           form.classList.add("was-validated");
           Swal.fire("", "Por favor complete todos los campos obligatorios y corrija los errores.", "error");
           return;

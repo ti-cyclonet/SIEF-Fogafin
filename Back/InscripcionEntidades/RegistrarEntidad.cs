@@ -312,27 +312,57 @@ namespace InscripcionEntidades
                     foreach (var area in destinatariosPorArea.OrderBy(x => x.Key))
                     {
                         string siglaArea = siglasAreas.ContainsKey(area.Key) ? siglasAreas[area.Key] : area.Key;
+                        string plantillaArea = "";
                         
-                        var plantillaArea = $@"
-                        <p>Doctor(a) {representanteLegal},</p>
-                        <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín, con el número del trámite <strong>{numeroTramiteStr}</strong>.</p>
-                        <p>Puede consultar el estado del trámite en el siguiente link: 
-                           <a href='{linkConsulta}'>{linkConsulta}</a></p>
-                        <p>Cordial saludo,<br/><br/>
-                        Departamento de Sistema de Seguro de Depósitos<br/>
-                        Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
-                        PBX: 601 4321370 extensiones 255 - 142</p>";
+                        switch (area.Key)
+                        {
+                            case "52060": // DIF
+                                plantillaArea = $@"
+                                <p>Estimados miembros del Departamento de Información Financiera:</p>
+                                <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
+                                <p>Les solicitamos adelantar los trámites pertinentes de revisión y aprobación de dicho formato, así como con la creación del tercero en el aplicativo Apoteosys.</p>
+                                <p>Cordial saludo,<br/><br/>
+                                Departamento de Sistema de Seguro de Depósitos<br/>
+                                Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
+                                PBX: 601 4321370 extensiones 255 - 142</p>";
+                                break;
+                                
+                            case "52070": // DGC
+                                plantillaArea = $@"
+                                <p>Departamento de Gestión de contenidos:</p>
+                                <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
+                                <p>Le solicitamos gestionar la creación de una PQRS en onbase con asignación a SSD.</p>
+                                <p>Cordial saludo,<br/><br/>
+                                Departamento de Sistema de Seguro de Depósitos<br/>
+                                Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
+                                PBX: 601 4321370 extensiones 255 - 142</p>";
+                                break;
+                                
+                            case "59030": // SSD
+                                plantillaArea = $@"
+                                <p>Departamento de Sistema de Seguro de Depósitos:</p>
+                                <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
+                                <p>Le solicitamos iniciar el proceso de validación de la información en el aplicativo y actualizar el estado correspondiente del proceso.</p>
+                                <p>Cordial saludo,<br/><br/>
+                                Departamento de Sistema de Seguro de Depósitos<br/>
+                                Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
+                                PBX: 601 4321370 extensiones 255 - 142</p>";
+                                break;
+                        }
                         
                         _logger.LogWarning($"🏢 PLANTILLA ÁREA {siglaArea}: {plantillaArea}");
                     }
 
                     var plantillaUsuario = $@"
                     <p>Estimado(a) {representanteLegal},</p>
-                    <p>Gracias por registrar la entidad <strong>{entidadNombre}</strong> en el Sistema de Inscripción de Entidades Financieras (SIEF).</p>
+                    <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
                     <p>El trámite se ha registrado exitosamente con el número <strong>{numeroTramiteStr}</strong>.</p>
                     <p>Puede consultar su estado en el siguiente enlace:</p>
                     <p><a href='{linkConsulta}'>{linkConsulta}</a></p>
-                    <p>Atentamente,<br/><strong>Equipo Fogafín</strong></p>";
+                    <p>Cordial saludo,<br/><br/>
+                    Departamento de Sistema de Seguro de Depósitos<br/>
+                    Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
+                    PBX: 601 4321370 extensiones 255 - 142</p>";
 
                     _logger.LogWarning($"👤 PLANTILLA USUARIO: {plantillaUsuario}");
 
@@ -395,33 +425,72 @@ namespace InscripcionEntidades
                     // Envío de correo al área responsable (sin adjunto)
                     if (correosAreaFiltrados.Any())
                     {
-                        var emailAreaPayload = new
+                        // Enviar correo específico por área
+                        foreach (var area in destinatariosPorArea.Where(a => correosAreaFiltrados.Intersect(a.Value.Select(v => v.email)).Any()))
                         {
-                            to = correosAreaFiltrados,
-                            subject = $"Nueva inscripción de entidad - {entidadNombre}",
-                            htmlBody = $@"
-                            <p>Doctor(a) {representanteLegal},</p>
-                            <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín, con el número del trámite <strong>{numeroTramiteStr}</strong>.</p>
-                            <p>Puede consultar el estado del trámite en el siguiente link: 
-                               <a href='{linkConsulta}'>{linkConsulta}</a></p>
-                            <p>Cordial saludo,<br/><br/>
-                            Departamento de Sistema de Seguro de Depósitos<br/>
-                            Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
-                            PBX: 601 4321370 extensiones 255 - 142</p>",
-                            attachments = new List<object>()
-                        };
-                        
-                        bool correoAreaEnviado = await EnviarCorreoAsync(emailAreaPayload);
-                        _logger.LogWarning($"📨 Correo al área responsable enviado: {correoAreaEnviado}");
+                            var correosAreaEspecifica = area.Value.Select(v => v.email).Where(email => correosAreaFiltrados.Contains(email)).ToList();
+                            string subject = "";
+                            string htmlBody = "";
+                            
+                            switch (area.Key)
+                            {
+                                case "52060": // DIF
+                                    subject = "Revisión y Aprobación del Formato de Inscripción de Terceros";
+                                    htmlBody = $@"
+                                    <p>Estimados miembros del Departamento de Información Financiera:</p>
+                                    <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
+                                    <p>Les solicitamos adelantar los trámites pertinentes de revisión y aprobación de dicho formato, así como con la creación del tercero en el aplicativo Apoteosys.</p>
+                                    <p>Cordial saludo,<br/><br/>
+                                    Departamento de Sistema de Seguro de Depósitos<br/>
+                                    Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
+                                    PBX: 601 4321370 extensiones 255 - 142</p>";
+                                    break;
+                                    
+                                case "52070": // DGC
+                                    subject = "Proceso de Inscripción al Sistema de Seguro de Depósitos";
+                                    htmlBody = $@"
+                                    <p>Departamento de Gestión de contenidos:</p>
+                                    <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
+                                    <p>Le solicitamos gestionar la creación de una PQRS en onbase con asignación a SSD.</p>
+                                    <p>Cordial saludo,<br/><br/>
+                                    Departamento de Sistema de Seguro de Depósitos<br/>
+                                    Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
+                                    PBX: 601 4321370 extensiones 255 - 142</p>";
+                                    break;
+                                    
+                                case "59030": // SSD
+                                    subject = "Proceso de Inscripción al Sistema de Seguro de Depósitos";
+                                    htmlBody = $@"
+                                    <p>Departamento de Sistema de Seguro de Depósitos:</p>
+                                    <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
+                                    <p>Le solicitamos iniciar el proceso de validación de la información en el aplicativo y actualizar el estado correspondiente del proceso.</p>
+                                    <p>Cordial saludo,<br/><br/>
+                                    Departamento de Sistema de Seguro de Depósitos<br/>
+                                    Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
+                                    PBX: 601 4321370 extensiones 255 - 142</p>";
+                                    break;
+                            }
+                            
+                            var emailAreaPayload = new
+                            {
+                                to = correosAreaEspecifica,
+                                subject = subject,
+                                htmlBody = htmlBody,
+                                attachments = new List<object>()
+                            };
+                            
+                            bool correoAreaEnviado = await EnviarCorreoAsync(emailAreaPayload);
+                            _logger.LogWarning($"📨 Correo a {area.Key} enviado: {correoAreaEnviado}");
+                        }
                     }
-                    
+
                     // Envío de correo de confirmación al usuario (con PDF adjunto)
                     if (correosConfirmacionFiltrados.Any())
                     {
                         var emailUsuarioPayload = new
                         {
                             to = correosConfirmacionFiltrados,
-                            subject = $"Confirmación de registro - {entidadNombre}",
+                            subject = "Proceso de Inscripción al Sistema de Seguro de Depósitos",
                             htmlBody = plantillaUsuario,
                             attachments = new List<object>()
                         };
