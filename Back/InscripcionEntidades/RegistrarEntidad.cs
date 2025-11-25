@@ -349,6 +349,87 @@ namespace InscripcionEntidades
                     string emailPayloadJson = JsonConvert.SerializeObject(emailPayload, Formatting.Indented);
                     _logger.LogWarning("📧 JSON del correo a enviar: " + emailPayloadJson);
 
+                    // Crear lista de correos de confirmación (todos los correos de la entidad)
+                    var correosConfirmacion = new List<string>();
+                    
+                    // Agregar correos de la entidad
+                    if (!string.IsNullOrEmpty(data.CorreoNoti))
+                        correosConfirmacion.Add(data.CorreoNoti);
+                    if (!string.IsNullOrEmpty(data.CorreoRep))
+                        correosConfirmacion.Add(data.CorreoRep);
+                    if (!string.IsNullOrEmpty(data.CorreoResponsable))
+                        correosConfirmacion.Add(data.CorreoResponsable);
+                    
+                    // Agregar fogafin@fogafin.gov.co
+                    correosConfirmacion.Add("fogafin@fogafin.gov.co");
+                    
+                    // Eliminar duplicados
+                    correosConfirmacion = correosConfirmacion.Distinct().ToList();
+                    
+                    _logger.LogWarning("📧 CORREOS DE CONFIRMACIÓN (PLANTILLA USUARIO):");
+                    foreach (var correo in correosConfirmacion)
+                    {
+                        _logger.LogWarning($"  📧 {correo}");
+                    }
+                    
+                    // JSON de correos de confirmación
+                    var emailConfirmacionPayload = new
+                    {
+                        representanteLegal = representanteLegal,
+                        entidad = entidadNombre,
+                        numeroTramite = numeroTramiteStr,
+                        correosArea = correosConfirmacion,
+                        linkConsulta = linkConsulta
+                    };
+                    
+                    string emailConfirmacionJson = JsonConvert.SerializeObject(emailConfirmacionPayload, Formatting.Indented);
+                    _logger.LogWarning("📧 JSON CORREOS CONFIRMACIÓN: " + emailConfirmacionJson);
+
+                    // Filtrar correos para no enviar temporalmente a @fogafin.gov.co
+                    var correosAreaFiltrados = correosArea.Where(email => !email.EndsWith("@fogafin.gov.co")).ToList();
+                    var correosConfirmacionFiltrados = correosConfirmacion.Where(email => !email.EndsWith("@fogafin.gov.co")).ToList();
+                    
+                    _logger.LogWarning($"🚫 CORREOS FILTRADOS - Área: {correosArea.Count - correosAreaFiltrados.Count} excluidos");
+                    _logger.LogWarning($"🚫 CORREOS FILTRADOS - Confirmación: {correosConfirmacion.Count - correosConfirmacionFiltrados.Count} excluidos");
+
+                    // Envío de correo al área responsable (sin adjunto)
+                    if (correosAreaFiltrados.Any())
+                    {
+                        var emailAreaPayload = new
+                        {
+                            to = correosAreaFiltrados,
+                            subject = $"Nueva inscripción de entidad - {entidadNombre}",
+                            htmlBody = $@"
+                            <p>Doctor(a) {representanteLegal},</p>
+                            <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín, con el número del trámite <strong>{numeroTramiteStr}</strong>.</p>
+                            <p>Puede consultar el estado del trámite en el siguiente link: 
+                               <a href='{linkConsulta}'>{linkConsulta}</a></p>
+                            <p>Cordial saludo,<br/><br/>
+                            Departamento de Sistema de Seguro de Depósitos<br/>
+                            Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
+                            PBX: 601 4321370 extensiones 255 - 142</p>",
+                            attachments = new List<object>()
+                        };
+                        
+                        bool correoAreaEnviado = await EnviarCorreoAsync(emailAreaPayload);
+                        _logger.LogWarning($"📨 Correo al área responsable enviado: {correoAreaEnviado}");
+                    }
+                    
+                    // Envío de correo de confirmación al usuario (con PDF adjunto)
+                    if (correosConfirmacionFiltrados.Any())
+                    {
+                        var emailUsuarioPayload = new
+                        {
+                            to = correosConfirmacionFiltrados,
+                            subject = $"Confirmación de registro - {entidadNombre}",
+                            htmlBody = plantillaUsuario,
+                            attachments = new List<object>()
+                        };
+                        
+                        bool correoUsuarioEnviado = await EnviarCorreoAsync(emailUsuarioPayload, localPdfPath);
+                        _logger.LogWarning($"📧 Correo de confirmación enviado: {correoUsuarioEnviado}");
+                    }
+
                     var responseObj = new
                     {
                         TM08_Consecutivo = consecutivo,
