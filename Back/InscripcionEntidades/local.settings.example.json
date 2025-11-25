@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "SqlConnectionString": "Server=TU_SERVIDOR;Database=TU_BASE_DATOS;User Id=TU_USUARIO;Password=TU_PASSWORD;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;",
+    "StorageConnectionString": "DefaultEndpointsProtocol=https;AccountName=TU_STORAGE_ACCOUNT;AccountKey=TU_ACCOUNT_KEY;EndpointSuffix=core.windows.net"
+  },
+  "Host": {
+    "CORS": "http://localhost:3000,http://127.0.0.1:5500,http://localhost,http://localhost:7176",
+    "CORSCredentials": true
+  }
+}
