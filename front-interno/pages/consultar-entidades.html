@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Consultar Entidades - Aplicativo Interno</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <!-- <link href="../assets/styles-interno.css" rel="stylesheet" /> -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+      .gestion-container {
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 30px;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+      }
+      .form-info-section {
+        border: 1px solid #ddd;
+        padding: 20px;
+        border-radius: 5px;
+        margin-top: 20px;
+      }
+      .info-field {
+        font-weight: bold;
+      }
+      .nav-tabs .nav-link {
+        color: #007bff;
+      }
+      .nav-tabs .nav-link.active {
+        font-weight: bold;
+      }
+      .readonly-input {
+        background-color: #eee;
+      }
+      .header-bg {
+        background: linear-gradient(135deg, #2e7d32 0%, #007bff 100%) !important;
+      }
+      .btn-outline-light:hover {
+        background-color: #007bff;
+        border-color: #007bff;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <div class="header-bg bg-primary text-white py-3">
+        <div class="container d-flex justify-content-between align-items-center">
+            <h3>Gestión SIEF - Aplicativo Interno</h3>
+            <div class="d-flex align-items-center">
+                <div class="me-3 text-end">
+                    <div><i class="fas fa-user-circle"></i> <span id="nombreFuncionario">Cargando...</span></div>
+                    <small class="text-light opacity-75" id="departamentoFuncionario">Cargando...</small>
+                </div>
+                <button class="btn btn-sm btn-outline-light" id="btnSalir"><i class="fas fa-sign-out-alt"></i> Salir</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="gestion-container">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h4>Consultar entidades</h4>
+          <p class="text-muted mb-0">
+            Selecciona una entidad para consultar el historial de la gestión realizada
+          </p>
+        </div>
+
+      </div>
+
+      <div class="mb-4">
+        <div class="row">
+          <div class="col-md-8">
+            <table class="table table-borderless">
+              <tbody>
+                <tr>
+                  <td class="fw-bold" style="width: 25%;">Sector:</td>
+                  <td>
+                    <select id="selectSector" class="form-select">
+                      <option value="">Seleccione...</option>
+                    </select>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="fw-bold">Entidad:</td>
+                  <td>
+                    <div class="position-relative">
+                      <input type="text" id="buscarEntidad" class="form-control" placeholder="Buscar entidad..." autocomplete="off" />
+                      <select id="selectEntidad" class="form-select d-none" size="5">
+                        <option value="">Seleccione...</option>
+                      </select>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="fw-bold">Estado del trámite:</td>
+                  <td>
+                    <input type="text" id="selectEstado" class="form-control" placeholder="Seleccione una entidad..." readonly style="background-color: #f8f9fa; color: #6c757d;" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="col-md-6">
+          </div>
+        </div>
+      </div>
+
+      <div id="informacionEntidad" class="d-none">
+        <table class="table table-borderless">
+          <tbody>
+            <tr>
+              <td class="fw-bold" style="width: 25%;">Tipo de entidad*</td>
+              <td style="width: 25%;" id="tipoEntidad"></td>
+              <td class="fw-bold" style="width: 25%;">NIT:</td>
+              <td style="width: 25%;" id="nitEntidad"></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Correo de notificación*</td>
+              <td id="correoNotificacion"></td>
+              <td class="fw-bold">Página web:</td>
+              <td id="paginaWeb"></td>
+            </tr>
+            <tr>
+              <td class="fw-bold">Número de trámite</td>
+              <td id="numeroTramite"></td>
+              <td class="fw-bold">Fecha de inscripción:</td>
+              <td id="fechaInscripcion"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="detalleEntidad" class="form-info-section d-none">
+        <ul class="nav nav-tabs" id="entidadTab" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" data-bs-target="#informacionGeneral" type="button">
+              Información general
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" data-bs-target="#informacionPago" type="button">
+              Información de la inscripción y pago
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" data-bs-target="#historialGestion" type="button">
+              Historial de gestión
+            </a>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="informacionGeneral" role="tabpanel">
+            <div class="py-3">
+              <h6 class="text-success">Información del Representante legal o apoderado</h6>
+              <table class="table table-borderless mt-3">
+                <tbody>
+                  <tr>
+                    <td class="fw-bold" style="width: 25%;">Nombre(s) y Apellido(s):</td>
+                    <td><span id="nombreRepresentante" class="text-muted">Información xxxxx</span></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Tipo de identificación:</td>
+                    <td><span id="tipoIdentificacion" class="text-muted">Información xxxxx</span></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Número de documento:</td>
+                    <td><span id="numeroDocumento" class="text-muted">Información xxxxx</span></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Correo electrónico:</td>
+                    <td><span id="correoRepresentante" class="text-muted">Información xxxxx</span></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Teléfono:</td>
+                    <td><span id="telefonoRepresentante" class="text-muted">Información xxxxx</span></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Cargo:</td>
+                    <td><span id="cargoRepresentante" class="text-muted">Información xxxxx</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              <h6 class="text-success mt-4">Información del responsable del registro</h6>
+              <table class="table table-borderless mt-3">
+                <tbody>
+                  <tr>
+                    <td class="fw-bold" style="width: 25%;">Nombre(s) y Apellido(s):</td>
+                    <td><span id="nombreResponsable" class="text-muted">Información xxxxx</span></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Correo electrónico:</td>
+                    <td><span id="correoResponsable" class="text-muted">Información xxxxx</span></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Teléfono:</td>
+                    <td><span id="telefonoResponsable" class="text-muted">Información xxxxx</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              <h6 class="text-success mt-4">Archivos de la solicitud</h6>
+              <table class="table table-borderless mt-3">
+                <tbody>
+                  <tr>
+                    <td class="fw-bold" style="width: 25%;">Certificado de existencia:</td>
+                    <td><a href="#" id="linkCertificado" class="text-primary">a link</a></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Resolución:</td>
+                    <td><a href="#" id="linkResolucion" class="text-primary">a link</a></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Inscripción de terceros:</td>
+                    <td><a href="#" id="linkTerceros" class="text-primary">a link</a></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Logo:</td>
+                    <td><a href="#" id="linkLogo" class="text-primary">a link</a></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="informacionPago" role="tabpanel">
+            <div class="py-3">
+              <p class="h6 text-success">Información de la inscripción y pago</p>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="historialGestion" role="tabpanel">
+            <div class="py-3">
+              <p class="h6 text-success">Historial de gestión</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Botones centrados al final -->
+      <div class="d-flex justify-content-center mt-4">
+        <button type="button" class="btn btn-secondary me-3" id="btnLimpiar">
+          <i class="fas fa-eraser me-1"></i>Limpiar
+        </button>
+        <button type="button" class="btn btn-outline-primary" id="btnCerrar">
+          <i class="fas fa-times me-1"></i>Cerrar
+        </button>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../config.js"></script>
+    <script>
+      // 1. Constantes de la API y Elementos
+      const isLocal = window.location.hostname === "localhost";
+      const API_BASE_URL = isLocal
+        ? "http://localhost:7176/api/"
+        : "https://rg-funciones-inscripcion-d0dpgpfrcmh8gxdg.eastus2-01.azurewebsites.net/api/";
+      
+      // Usar función del config.js
+
+      const selectEntidadGestion = document.getElementById(
+        "selectEntidadGestion"
+      );
+      const gestionEstado = document.getElementById("gestionEstado");
+      const detalleGestion = document.getElementById("detalleGestion");
+      const btnAprobarDocs = document.getElementById("btnAprobarDocumentos");
+      const btnAprobarInsc = document.getElementById("btnAprobarInscripcion");
+      const btnRechazarInsc = document.getElementById("btnRechazarInscripcion");
+
+      // --- Funciones de Carga y Lógica de Negocio ---
+
+      /**
+       * Carga las entidades que están en estado "gestionable" (documentos, revisión, etc.)
+       * Se usará la API de filtro, probablemente filtrando por los IDs de estados que no son "Inscrita" o "Rechazada".
+       */
+      async function loadEntidadesGestionables() {
+        // ⭐️ Aquí deberías pasar los IDs de los estados que quieres gestionar.
+        // Ej: estadoId=1 (Solicitud), estadoId=2 (Validación Documentos), estadoId=3 (Revisión Legal)
+        const estadosGestionables = "1,2,3";
+        const url = `${API_BASE_URL}entidades-filtradas?estadoIds=${estadosGestionables}`;
+
+        try {
+          const response = await fetch(url);
+          if (!response.ok)
+            throw new Error("Error al cargar entidades para gestión.");
+
+          const entidades = await response.json();
+          selectEntidadGestion.innerHTML =
+            '<option value="">Seleccione...</option>';
+
+          entidades.forEach((e) =>
+            selectEntidadGestion.insertAdjacentHTML(
+              "beforeend",
+              `<option value="${e.id}" data-estado-id="${e.estadoId}" data-estado-nombre="${e.estadoNombre}">${e.razonSocial} (${e.estadoNombre})</option>`
+            )
+          );
+        } catch (error) {
+          Swal.fire(
+            "Error de Carga",
+            "No se pudieron cargar las entidades gestionables.",
+            "error"
+          );
+          console.error(error);
+        }
+      }
+
+      /**
+       * Actualiza la información de cabecera y habilita/deshabilita botones de gestión.
+       */
+      function actualizarUI(entidadId) {
+        detalleGestion.classList.add("d-none");
+        btnAprobarDocs.disabled = true;
+        btnAprobarInsc.disabled = true;
+        btnRechazarInsc.disabled = true;
+
+        if (!entidadId) {
+          document.getElementById("gestionTipoEntidad").value = "";
+          document.getElementById("gestionNit").value = "";
+          gestionEstado.value = "";
+          return;
+        }
+
+        const selectedOption =
+          selectEntidadGestion.options[selectEntidadGestion.selectedIndex];
+        const estadoNombre = selectedOption.dataset.estadoNombre;
+        const estadoId = selectedOption.dataset.estadoId;
+
+        // 1. Mostrar estado actual
+        gestionEstado.value = estadoNombre;
+
+        // 2. Simular carga de detalle (Debería usar la API: /api/consultar-entidad-detalle/{id})
+        // Por simplicidad, simulamos la carga de otros campos aquí
+        document.getElementById("gestionTipoEntidad").value =
+          "Establecimiento bancario (Simulado)";
+        document.getElementById("gestionNit").value = "987654321 (Simulado)";
+        detalleGestion.classList.remove("d-none");
+
+        // 3. Habilitar botones basado en el estado (Lógica de Negocio)
+        // 1=Solicitud, 2=Validación Documentos, 3=Revisión Legal
+        if (estadoId === "2") {
+          // Validación de Documentos -> Aprobar Documentos
+          btnAprobarDocs.disabled = false;
+          btnRechazarInsc.disabled = false;
+        } else if (estadoId === "3") {
+          // Revisión Legal -> Aprobar Inscripción
+          btnAprobarInsc.disabled = false;
+          btnRechazarInsc.disabled = false;
+        } else {
+          // En cualquier otro estado (ej. 1=Solicitud), solo se permite rechazar
+          btnRechazarInsc.disabled = false;
+        }
+      }
+
+      /**
+       * Llama a la Azure Function para cambiar el estado del trámite.
+       * @param {string} accion - La acción (AprobarDocumentos, AprobarInscripcion, RechazarInscripcion).
+       * @param {string} [observaciones] - Observaciones.
+       */
+      async function ejecutarGestion(accion, observaciones = "") {
+        const IdEntidad = selectEntidadGestion.value;
+        const funcionario =
+          localStorage.getItem("currentUser") || "SSD.Funcionario";
+
+        const requestBody = {
+          IdEntidad: parseInt(IdEntidad),
+          Accion: accion,
+          Observaciones: observaciones,
+          Funcionario: funcionario,
+        };
+
+        try {
+          const response = await fetch(API_BASE_URL + "gestionar-inscripcion", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(
+              errorData.message ||
+                "Error desconocido al gestionar la inscripción."
+            );
+          }
+
+          const successData = await response.json();
+
+          Swal.fire({
+            icon: "success",
+            title: "Gestión Exitosa",
+            html: `La entidad fue actualizada a: <b>${successData.nuevoEstado}</b>.`,
+            confirmButtonText: "Aceptar",
+          }).then(() => {
+            // Recargar la lista de entidades gestionables
+            loadEntidadesGestionables();
+            // Limpiar la UI
+            actualizarUI(null);
+          });
+        } catch (error) {
+          Swal.fire("Error de Gestión", error.message, "error");
+        }
+      }
+
+      // --- Funciones de Confirmación (SweetAlert2) ---
+
+      function confirmarGestion(accion) {
+        let titulo =
+          accion === "AprobarDocumentos"
+            ? "Aprobar Documentos"
+            : "Aprobar Inscripción";
+        let texto =
+          accion === "AprobarDocumentos"
+            ? "¿Confirma que los documentos son correctos y desea pasar la solicitud a Revisión Legal?"
+            : "¿Confirma la aprobación final y la inscripción de la entidad?";
+
+        Swal.fire({
+          icon: "question",
+          title: titulo,
+          text: texto,
+          showCancelButton: true,
+          confirmButtonText: "Sí, Continuar",
+          cancelButtonText: "Cancelar",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            ejecutarGestion(accion);
+          }
+        });
+      }
+
+      function confirmarRechazo() {
+        Swal.fire({
+          icon: "warning",
+          title: "Rechazar Solicitud",
+          text: "Ingrese el motivo del rechazo. Este será visible para la entidad.",
+          input: "textarea",
+          inputPlaceholder: "Ingrese el motivo detallado del rechazo aquí...",
+          inputValidator: (value) => {
+            if (!value) return "¡Debe ingresar un motivo de rechazo!";
+          },
+          showCancelButton: true,
+          confirmButtonText: "Rechazar Inscripción",
+          cancelButtonText: "Cancelar",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            ejecutarGestion("RechazarInscripcion", result.value);
+          }
+        });
+      }
+
+      // --- Eventos ---
+
+      // 1. Inicialización y carga de usuario
+      document.addEventListener("DOMContentLoaded", () => {
+        // Cargar información del usuario
+        const userName = localStorage.getItem('currentUser');
+        const funcionarioSpan = document.getElementById('nombreFuncionario');
+        const departamentoSpan = document.getElementById('departamentoFuncionario');
+        
+        if (userName && funcionarioSpan) {
+          const parts = userName.split('.');
+          const displayUser = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+          funcionarioSpan.textContent = displayUser;
+          
+          // Obtener información del área desde localStorage
+          const userAreaName = localStorage.getItem('userAreaName');
+          let tipoUsuario = 'Funcionario';
+          let departamento = '';
+          
+          if (userName.toLowerCase() === 'adminsief') {
+            tipoUsuario = 'Administrador';
+          } else if (userAreaName) {
+            departamento = userAreaName;
+          } else {
+            departamento = 'SSD';
+          }
+          
+          departamentoSpan.textContent = departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario;
+        } else {
+          window.location.href = '../index.html';
+          return;
+        }
+        
+        // Botón de salir
+        document.getElementById('btnSalir').addEventListener('click', () => {
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('userArea');
+          localStorage.removeItem('userAreaName');
+          window.location.href = '../index.html';
+        });
+        
+        // Cargar sectores y estados
+        cargarSectores();
+        cargarEstados();
+        
+        // Event listeners para filtros
+        document.getElementById('selectSector').addEventListener('change', (e) => {
+          const sectorId = e.target.value;
+          cargarEntidadesPorSector(sectorId);
+          limpiarDetalles();
+        });
+        
+        // Buscador de entidades
+        const buscarEntidad = document.getElementById('buscarEntidad');
+        const selectEntidad = document.getElementById('selectEntidad');
+        
+        buscarEntidad.addEventListener('input', (e) => {
+          const texto = e.target.value;
+          filtrarEntidades(texto);
+          
+          if (texto && entidadesData.length > 0) {
+            selectEntidad.classList.remove('d-none');
+          } else {
+            selectEntidad.classList.add('d-none');
+          }
+        });
+        
+        buscarEntidad.addEventListener('focus', () => {
+          if (entidadesData.length > 0) {
+            selectEntidad.classList.remove('d-none');
+          }
+        });
+        
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('.position-relative')) {
+            selectEntidad.classList.add('d-none');
+          }
+        });
+        
+        selectEntidad.addEventListener('change', (e) => {
+          const selectedOption = e.target.options[e.target.selectedIndex];
+          if (selectedOption.value) {
+            buscarEntidad.value = selectedOption.textContent;
+            selectEntidad.classList.add('d-none');
+            cargarDetalleEntidad(selectedOption.value);
+          }
+        });
+        
+        // Botón limpiar
+        document.getElementById('btnLimpiar').addEventListener('click', limpiarTodo);
+        
+        // Botón cerrar
+        document.getElementById('btnCerrar').addEventListener('click', () => {
+          window.location.href = 'dashboard.html';
+        });
+      });
+
+      // Función para cargar sectores desde el endpoint
+      async function cargarSectores() {
+        const selectSector = document.getElementById('selectSector');
+        selectSector.innerHTML = '<option value="">Seleccione...</option>';
+
+        const codigosFiltro = [1, 2, 4, 28];
+        const URL_SECTORES = getApiUrl(`ConsultarSectores/${codigosFiltro.join(',')}`);
+
+        try {
+          const response = await fetch(URL_SECTORES);
+          
+          if (!response.ok) {
+            throw new Error('Error al obtener los sectores financieros');
+          }
+
+          const sectores = await response.json();
+
+          sectores.forEach((sector) => {
+            const option = document.createElement('option');
+            option.value = sector.TM01_CODIGO;
+            option.textContent = sector.TM01_NOMBRE;
+            selectSector.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error al cargar sectores:', error);
+        }
+      }
+
+      // Función para cargar estados
+      async function cargarEstados() {
+        const selectEstado = document.getElementById('selectEstado');
+        selectEstado.innerHTML = '<option value="">Seleccione...</option>';
+
+        try {
+          const response = await fetch(getApiUrl('ConsultarEstados'));
+          
+          if (!response.ok) {
+            throw new Error('Error al obtener los estados');
+          }
+
+          const estados = await response.json();
+
+          estados.forEach((estado) => {
+            const option = document.createElement('option');
+            option.value = estado.id;
+            option.textContent = estado.nombre;
+            selectEstado.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error al cargar estados:', error);
+        }
+      }
+
+      let entidadesData = [];
+
+      // Función para cargar entidades por sector
+      async function cargarEntidadesPorSector(sectorId) {
+        const selectEntidad = document.getElementById('selectEntidad');
+        const buscarEntidad = document.getElementById('buscarEntidad');
+        
+        selectEntidad.innerHTML = '<option value="">Seleccione...</option>';
+        buscarEntidad.value = '';
+        entidadesData = [];
+
+        if (!sectorId) return;
+
+        try {
+          const response = await fetch(getApiUrl(`entidades-por-sector/${sectorId}`));
+          
+          if (!response.ok) {
+            throw new Error('Error al obtener las entidades');
+          }
+
+          entidadesData = await response.json();
+          mostrarEntidades(entidadesData);
+        } catch (error) {
+          console.error('Error al cargar entidades:', error);
+        }
+      }
+
+      // Función para mostrar entidades en el select
+      function mostrarEntidades(entidades) {
+        const selectEntidad = document.getElementById('selectEntidad');
+        selectEntidad.innerHTML = '<option value="">Seleccione...</option>';
+
+        entidades.forEach((entidad) => {
+          const option = document.createElement('option');
+          option.value = entidad.id;
+          option.textContent = entidad.nombre;
+          selectEntidad.appendChild(option);
+        });
+      }
+
+      // Función para filtrar entidades
+      function filtrarEntidades(texto) {
+        if (!texto) {
+          mostrarEntidades(entidadesData);
+          return;
+        }
+
+        const entidadesFiltradas = entidadesData.filter(entidad => 
+          entidad.nombre.toLowerCase().includes(texto.toLowerCase())
+        );
+        mostrarEntidades(entidadesFiltradas);
+      }
+
+      // Función para cargar detalles de la entidad seleccionada
+      async function cargarDetalleEntidad(entidadId) {
+        if (!entidadId) {
+          limpiarDetalles();
+          return;
+        }
+
+        try {
+          const response = await fetch(getApiUrl(`ConsultarDetalleEntidad/${entidadId}`));
+          
+          if (!response.ok) {
+            throw new Error('Error al obtener el detalle de la entidad');
+          }
+
+          const detalle = await response.json();
+          
+          // Si tenemos NIT y número de trámite, consultar el estado usando el endpoint que funciona
+          if (detalle.nit && detalle.numeroTramite) {
+            try {
+              const estadoUrl = getApiUrl(`estado-tramite/${detalle.nit}/${detalle.numeroTramite}`);
+              const estadoResponse = await fetch(estadoUrl);
+              if (estadoResponse.ok) {
+                const estadoData = await estadoResponse.json();
+                detalle.estadoTramite = estadoData.EstadoTramite;
+                detalle.estadoId = estadoData.EstadoId || '12';
+                detalle.estadoData = estadoData;
+              }
+            } catch (estadoError) {
+              // Error silencioso
+            }
+          }
+          
+          mostrarDetalleEntidad(detalle);
+        } catch (error) {
+          console.error('Error al cargar detalle:', error);
+          Swal.fire('Error', 'No se pudo cargar la información de la entidad', 'error');
+        }
+      }
+
+      // Función para mostrar los detalles de la entidad
+      function mostrarDetalleEntidad(detalle) {
+        // Llenar campos de información básica
+        document.getElementById('tipoEntidad').textContent = detalle.tipoEntidad || '';
+        document.getElementById('nitEntidad').textContent = detalle.nit || '';
+        document.getElementById('correoNotificacion').textContent = detalle.correoNotificacion || '';
+        document.getElementById('paginaWeb').textContent = detalle.paginaWeb || '';
+        document.getElementById('numeroTramite').textContent = detalle.numeroTramite || '';
+        document.getElementById('fechaInscripcion').textContent = detalle.fechaInscripcion || '';
+        
+        // Establecer el estado en el campo de estado
+        const selectEstado = document.getElementById('selectEstado');
+        if (detalle.estadoTramite) {
+          selectEstado.value = detalle.estadoTramite;
+          selectEstado.style.color = '#000';
+        }
+        
+        // Llenar información del representante
+        document.getElementById('nombreRepresentante').textContent = detalle.nombreRepresentante || 'Información xxxxx';
+        document.getElementById('tipoIdentificacion').textContent = 'Cédula de ciudadanía';
+        document.getElementById('numeroDocumento').textContent = detalle.identificacionRepresentante || 'Información xxxxx';
+        document.getElementById('correoRepresentante').textContent = detalle.correoRepresentante || 'Información xxxxx';
+        document.getElementById('telefonoRepresentante').textContent = detalle.telefonoRepresentante || 'Información xxxxx';
+        document.getElementById('cargoRepresentante').textContent = detalle.cargoRepresentante || 'Información xxxxx';
+        
+        // Llenar información del responsable
+        document.getElementById('nombreResponsable').textContent = detalle.nombreResponsableRegistro || 'Información xxxxx';
+        document.getElementById('correoResponsable').textContent = detalle.correoResponsableRegistro || 'Información xxxxx';
+        document.getElementById('telefonoResponsable').textContent = detalle.telefonoResponsableRegistro || 'Información xxxxx';
+        
+        // Configurar links de archivos
+        configurarLinksArchivos(detalle.archivos || []);
+        
+        // Mostrar secciones
+        document.getElementById('informacionEntidad').classList.remove('d-none');
+        document.getElementById('detalleEntidad').classList.remove('d-none');
+      }
+
+      // Función para limpiar todos los campos
+      function limpiarTodo() {
+        // Limpiar selects
+        document.getElementById('selectSector').value = '';
+        document.getElementById('selectEntidad').innerHTML = '<option value="">Seleccione...</option>';
+        document.getElementById('selectEstado').value = '';
+        document.getElementById('buscarEntidad').value = '';
+        
+        // Limpiar datos de entidades
+        entidadesData = [];
+        
+        limpiarDetalles();
+      }
+
+      // Función para configurar links de archivos
+      function configurarLinksArchivos(archivos) {
+        const links = {
+          'linkCertificado': 'CERTIFICADO_',
+          'linkResolucion': 'RESOLUCION_',
+          'linkTerceros': 'TERCEROS_',
+          'linkLogo': 'LOGO_'
+        };
+        
+        Object.keys(links).forEach(linkId => {
+          const linkElement = document.getElementById(linkId);
+          const prefijo = links[linkId];
+          const archivo = archivos.find(a => a.includes(prefijo));
+          
+          if (archivo) {
+            const isLocal = window.location.hostname === "localhost";
+            const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(archivo)}`);
+            linkElement.href = downloadUrl;
+            linkElement.target = '_blank';
+            linkElement.textContent = 'Ver archivo';
+            linkElement.style.pointerEvents = 'auto';
+          } else {
+            linkElement.href = '#';
+            linkElement.target = '';
+            linkElement.textContent = 'No disponible';
+            linkElement.style.pointerEvents = 'none';
+            linkElement.style.color = '#6c757d';
+          }
+        });
+      }
+
+      // Función para limpiar detalles
+      function limpiarDetalles() {
+        // Limpiar campos de información
+        document.getElementById('tipoEntidad').textContent = '';
+        document.getElementById('nitEntidad').textContent = '';
+        document.getElementById('correoNotificacion').textContent = '';
+        document.getElementById('paginaWeb').textContent = '';
+        document.getElementById('numeroTramite').textContent = '';
+        document.getElementById('fechaInscripcion').textContent = '';
+        document.getElementById('nombreRepresentante').textContent = 'Información xxxxx';
+        
+        // Limpiar estado del trámite
+        const selectEstado = document.getElementById('selectEstado');
+        selectEstado.value = '';
+        selectEstado.placeholder = 'Seleccione una entidad...';
+        selectEstado.style.color = '#6c757d';
+        
+        // Ocultar secciones
+        document.getElementById('informacionEntidad').classList.add('d-none');
+        document.getElementById('detalleEntidad').classList.add('d-none');
+      }
+
+      // 2. Evento al cambiar la entidad seleccionada
+      selectEntidadGestion.addEventListener("change", (e) =>
+        actualizarUI(e.target.value)
+      );
+
+      // 3. Eventos de los botones de gestión
+      btnAprobarDocs.addEventListener("click", () =>
+        confirmarGestion("AprobarDocumentos")
+      );
+      btnAprobarInsc.addEventListener("click", () =>
+        confirmarGestion("AprobarInscripcion")
+      );
+      btnRechazarInsc.addEventListener("click", confirmarRechazo);
+    </script>
+  </body>
+</html>

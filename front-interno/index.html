@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Acceso Interno - Gestión SIEF</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="./assets/styles-login.css"
+    />
+  </head>
+  <body>
+    <div class="login-container text-center">
+      <div class="login-header mb-4">
+        <img
+          src="./assets/images/logo.svg"
+          alt="Logo Fogafín"
+          class="mb-3"
+        />
+        <h4>Aplicativo de Gestión Interna</h4>
+      </div>
+
+      <form id="loginForm">
+        <div class="mb-3">
+          <div class="input-group">
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Usuario"
+              id="inputUsuario"
+              autocomplete="off"
+              required
+            />
+            <button class="btn btn-outline-secondary" type="button" id="btnEditarUsuario" title="Editar usuario">
+              <i class="fas fa-edit"></i>
+            </button>
+          </div>
+
+        </div>
+
+
+        <div class="mb-3 d-flex justify-content-start align-items-center">
+          <input
+            type="checkbox"
+            class="form-check-input me-2"
+            id="checkRobot"
+            required
+          />
+          <label class="form-check-label me-3" for="checkRobot"
+            >No soy un robot</label
+          >
+          <div class="ms-auto"><small>reCAPTCHA</small></div>
+        </div>
+
+        <button type="submit" class="btn btn-ingresar w-100 mt-2">
+          <i class="fas fa-sign-in-alt me-2"></i> Ingresar
+        </button>
+
+        <a href="#" class="d-block mt-3 text-muted" style="font-size: 0.9em">
+          ¿Ha olvidado su contraseña?
+        </a>
+      </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="./config.js"></script>
+    <script>
+      // Variables de control
+      let modoAutomatico = true;
+      
+      // Configuración de API
+      const isLocal = window.location.hostname === "localhost";
+      const API_BASE_URL = isLocal
+        ? "http://localhost:7176/api"
+        : "https://rg-funciones-inscripcion-d0dpgpfrcmh8gxdg.eastus2-01.azurewebsites.net/api";
+      
+      // Usar función del config.js
+      
+      // Obtener usuario del backend
+      document.addEventListener('DOMContentLoaded', async function() {
+        try {
+          const response = await fetch(getApiUrl('whoami'));
+          if (response.ok) {
+            const usuario = await response.text();
+            const inputUsuario = document.getElementById('inputUsuario');
+            inputUsuario.value = usuario.trim();
+            inputUsuario.readOnly = true;
+            inputUsuario.classList.add('text-muted');
+            inputUsuario.style.backgroundColor = '#f8f9fa';
+          }
+        } catch (error) {
+          // Silencioso - no mostrar errores en consola
+        }
+        
+        // Evento para alternar modo de edición
+        document.getElementById('btnEditarUsuario').addEventListener('click', function() {
+          const inputUsuario = document.getElementById('inputUsuario');
+          const modoTexto = document.getElementById('modoUsuario');
+          const btnIcon = this.querySelector('i');
+          
+          if (modoAutomatico) {
+            // Cambiar a modo manual
+            inputUsuario.readOnly = false;
+            inputUsuario.classList.remove('text-muted');
+            inputUsuario.style.backgroundColor = '';
+            inputUsuario.focus();
+            inputUsuario.select();
+
+            btnIcon.className = 'fas fa-undo';
+            this.title = 'Volver a modo automático';
+            modoAutomatico = false;
+          } else {
+            // Volver a modo automático
+            inputUsuario.readOnly = true;
+            inputUsuario.classList.add('text-muted');
+            inputUsuario.style.backgroundColor = '#f8f9fa';
+
+            btnIcon.className = 'fas fa-edit';
+            this.title = 'Editar usuario';
+            modoAutomatico = true;
+          }
+        });
+      });
+      
+      // Validación de usuario en tabla TM04_Responsables
+      async function validarUsuarioResponsable(usuario) {
+        try {
+          const response = await fetch(getApiUrl('validar-usuario'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: usuario })
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            return result;
+          }
+          return false;
+        } catch (error) {
+          console.error('Error validando usuario:', error);
+          return false;
+        }
+      }
+
+      document
+        .getElementById("loginForm")
+        .addEventListener("submit", async function (event) {
+          event.preventDefault();
+
+          const usuario = document.getElementById("inputUsuario").value;
+          
+          // Mostrar loading
+          Swal.fire({
+            title: "Validando usuario...",
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading(),
+          });
+
+          try {
+            // Validar usuario en tabla TM04_Responsables
+            const isAuthorized = await validarUsuarioResponsable(usuario);
+            
+            Swal.close();
+            
+            if (isAuthorized.esValido) {
+              localStorage.setItem("currentUser", usuario);
+              if (isAuthorized.codigoArea) {
+                localStorage.setItem("userArea", isAuthorized.codigoArea);
+                localStorage.setItem("userAreaName", isAuthorized.nombreArea);
+                console.log(`Usuario ${usuario} pertenece al área: ${isAuthorized.nombreArea} (Código: ${isAuthorized.codigoArea})`);
+              }
+
+              Swal.fire({
+                title: "Acceso concedido",
+                text: "Redirigiendo al Dashboard...",
+                icon: "success",
+                timer: 800,
+                showConfirmButton: false,
+                willClose: () => {
+                  window.location.href = "pages/dashboard.html";
+                },
+              });
+            } else {
+              Swal.fire({
+                icon: "error",
+                title: "¡Acceso Denegado!",
+                html: "El usuario no está autorizado para acceder al sistema.",
+                confirmButtonText: "Aceptar",
+                confirmButtonColor: "#dc3545",
+              });
+            }
+          } catch (error) {
+            Swal.close();
+            Swal.fire({
+              icon: "error",
+              title: "Error de conexión",
+              text: "No se pudo validar el usuario. Intente nuevamente.",
+              confirmButtonText: "Aceptar",
+              confirmButtonColor: "#dc3545",
+            });
+          }
+        });
+    </script>
+  </body>
+</html>

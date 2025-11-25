@@ -1,0 +1,53 @@
+body {
+  background-color: #f0f2f5;
+  font-family: Arial, sans-serif;
+}
+.main-card {
+  background-color: white;
+  border-radius: 20px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  margin-top: 30px;
+  margin-bottom: 30px;
+}
+.header-bg {
+  background-color: #1e7a46;
+  color: white;
+  padding: 10px 0;
+  margin-bottom: 20px;
+}
+.section-title {
+  color: #1e7a46;
+  font-weight: bold;
+  border-bottom: 2px solid #ccc;
+  padding-bottom: 5px;
+  margin-top: 20px;
+  margin-bottom: 15px;
+}
+.btn-update {
+  background-color: #007bff;
+  color: white;
+  border-radius: 10px;
+}
+.status-badge {
+  font-weight: bold;
+  padding: 0.4em 0.6em;
+  border-radius: 10px;
+  font-size: 0.85em;
+}
+.status-pendiente {
+  background-color: #ffc107;
+  color: #343a40;
+}
+.status-revision {
+  background-color: #007bff;
+  color: white;
+}
+.status-aprobado {
+  background-color: #28a745;
+  color: white;
+}
+.status-rechazado {
+  background-color: #dc3545;
+  color: white;
+}
