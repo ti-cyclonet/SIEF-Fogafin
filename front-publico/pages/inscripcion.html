@@ -496,7 +496,12 @@
           fileInput.addEventListener('change', () => {
             clearFileError(id);
             if (fileInput.files && fileInput.files.length > 0) {
-              textSpan.textContent = fileInput.files[0].name;
+              const file = fileInput.files[0];
+              const validation = validateFile(id, file);
+              if (!validation.valid) {
+                showFileError(id, validation.message);
+              }
+              textSpan.textContent = file.name;
             } else {
               textSpan.textContent = 'Ningún archivo seleccionado';
             }
