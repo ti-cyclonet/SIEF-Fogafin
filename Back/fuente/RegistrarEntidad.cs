@@ -294,33 +294,90 @@ namespace InscripcionEntidades
                     // 🔹 4. Consulta de Correos del Área Responsable
                     // -----------------------------------------------------------------------------
 
-                    // 🔹 Consultar correos del área responsable
+                    // 🔹 Consultar destinatarios por áreas específicas
                     List<string> correosArea = new();
-                    string correosQuery = @"
-                    SELECT u.TM03_Correo
-                    FROM dbo.TM03_Usuario u
-                    INNER JOIN dbo.TM01_Estado e ON u.TM03_TM02_Codigo = e.TM01_TM02_Codigo
-                    WHERE e.TM01_Codigo = 12";
+                    var destinatariosPorArea = new Dictionary<string, List<(string nombre, string email)>>();
+                    
+                    string destinatariosQuery = @"
+                    SELECT 
+                        r.TM04_Nombre + ' ' + r.TM04_Apellidos AS NombreCompleto,
+                        r.TM04_EMail,
+                        s.TM03_Nombre AS Area,
+                        s.TM03_Codigo AS CodigoArea
+                    FROM [SistemasComunes].[dbo].[TM04_Responsables] r
+                    INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
+                    INNER JOIN [SistemasComunes].[dbo].[TM03_Subdirecciones] s ON r.TM04_TM03_Codigo = s.TM03_Codigo
+                    WHERE c.TM15_TM12_TM01_Codigo = 17 
+                    AND c.TM15_TM12_Ambiente = 'PROD'
+                    AND r.TM04_Activo = 1
+                    AND s.TM03_Codigo IN (52060, 52070, 59030)
+                    ORDER BY s.TM03_Codigo, r.TM04_Nombre";
 
-                    using (SqlCommand cmdCorreos = new SqlCommand(correosQuery, conn))
+                    using (SqlCommand cmdDestinatarios = new SqlCommand(destinatariosQuery, conn))
                     {
-                        cmdCorreos.Parameters.AddWithValue("@Nit", data.Nit);
-                        using (SqlDataReader reader = await cmdCorreos.ExecuteReaderAsync())
+                        using (SqlDataReader reader = await cmdDestinatarios.ExecuteReaderAsync())
                         {
                             while (await reader.ReadAsync())
                             {
-                                // ⭐️ CORRECCIÓN: Verifica si el valor es nulo antes de agregarlo
-                                if (!reader.IsDBNull(0))
+                                string nombre = reader["NombreCompleto"].ToString() ?? "";
+                                string email = reader["TM04_EMail"].ToString() ?? "";
+                                string area = reader["Area"].ToString() ?? "";
+                                string codigoArea = reader["CodigoArea"].ToString() ?? "";
+                                
+                                if (!string.IsNullOrEmpty(email))
                                 {
-                                    correosArea.Add(reader.GetString(0));
-                                }
-                                else
-                                {
-                                    _logger.LogWarning("Se encontró un correo nulo en la consulta de correos del área.");
+                                    correosArea.Add(email);
+                                    
+                                    if (!destinatariosPorArea.ContainsKey(codigoArea))
+                                        destinatariosPorArea[codigoArea] = new List<(string, string)>();
+                                    
+                                    destinatariosPorArea[codigoArea].Add((nombre, email));
                                 }
                             }
                         }
                     }
+                    
+                    // Mostrar destinatarios por consola
+                    _logger.LogInformation("📋 DESTINATARIOS AGRUPADOS POR ÁREA:");
+                    foreach (var area in destinatariosPorArea.OrderBy(x => x.Key))
+                    {
+                        _logger.LogInformation($"\n🏢 ÁREA {area.Key}:");
+                        foreach (var (nombre, email) in area.Value)
+                        {
+                            _logger.LogInformation($"  📧 {nombre} - {email}");
+                        }
+                    }
+                    
+                    // Mostrar plantillas de correo
+                    string representanteLegal = $"{data.NombreRep} {data.ApellidoRep}";
+                    string entidadNombre = data.Nombre;
+                    string numeroTramiteStr = $"{consecutivo}{tipoCodigo}{currentYear}";
+                    string linkConsulta = "https://sadevsiefexterno.z20.web.core.windows.net/pages/consulta.html";
+
+                    _logger.LogInformation("\n📧 PLANTILLAS DE CORREO:");
+                    
+                    var plantillaArea = $@"
+                    <p>Doctor(a) {representanteLegal},</p>
+                    <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín, con el número del trámite <strong>{numeroTramiteStr}</strong>.</p>
+                    <p>Puede consultar el estado del trámite en el siguiente link: 
+                       <a href='{linkConsulta}'>{linkConsulta}</a></p>
+                    <p>Cordial saludo,<br/><br/>
+ 
+                    Departamento de Sistema de Seguro de Depósitos<br/>
+                    Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
+                    PBX: 601 4321370 extensiones 255 - 142</p>";
+
+                    _logger.LogInformation($"\n🏢 PLANTILLA ÁREA RESPONSABLE:\n{plantillaArea}");
+
+                    var plantillaUsuario = $@"
+                    <p>Estimado(a) {representanteLegal},</p>
+                    <p>Gracias por registrar la entidad <strong>{entidadNombre}</strong> en el Sistema de Inscripción de Entidades Financieras (SIEF).</p>
+                    <p>El trámite se ha registrado exitosamente con el número <strong>{numeroTramiteStr}</strong>.</p>
+                    <p>Puede consultar su estado en el siguiente enlace:</p>
+                    <p><a href='{linkConsulta}'>{linkConsulta}</a></p>
+                    <p>Atentamente,<br/><strong>Equipo Fogafín</strong></p>";
+
+                    _logger.LogInformation($"\n👤 PLANTILLA USUARIO:\n{plantillaUsuario}");
                     //Se agrega el correo fogafin@fogafin.gov.co a la lista obtenida
                     //correosArea.Add("fogafin@fogafin.gov.co");
 

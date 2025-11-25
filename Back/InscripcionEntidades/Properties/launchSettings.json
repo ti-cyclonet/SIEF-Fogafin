@@ -3,13 +3,13 @@
     "InscripcionEntidades": {
       "commandName": "Project",
       "commandLineArgs": "start --port 7176",
-      "workingDirectory": "C:\\xampp\\htdocs\\AOS\\Fogafin\\SIEF\\Back\\InscripcionEntidades"
+      "workingDirectory": "C:\\xampp\\htdocs\\AOS\\Fogafin\\SIEF-Fogafin\\Back\\InscripcionEntidades"
     },
     "Perfil 1": {
       "commandName": "Executable",
       "executablePath": "C:\\Users\\AlfredoMamby\\AppData\\Roaming\\npm\\func.cmd",
       "commandLineArgs": "start --port 7176",
-      "workingDirectory": "C:\\xampp\\htdocs\\AOS\\Fogafin\\SIEF\\Back\\InscripcionEntidades",
+      "workingDirectory": "C:\\xampp\\htdocs\\AOS\\Fogafin\\SIEF-Fogafin\\Back\\InscripcionEntidades",
       "remoteDebugMachine": "InscripcionEntidades V2"
     }
   }
