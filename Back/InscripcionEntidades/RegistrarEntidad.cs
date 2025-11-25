@@ -205,6 +205,145 @@ namespace InscripcionEntidades
                         }
                     }
 
+                    _logger.LogWarning("✅ ADJUNTOS PROCESADOS - INICIANDO CORREOS");
+
+                    // Preparar datos para envío de correo
+                    string representanteLegal = $"{data.NombreRep} {data.ApellidoRep}";
+                    string entidadNombre = data.Nombre;
+                    string numeroTramiteStr = $"{consecutivo}{tipoCodigo}{currentYear}";
+                    string linkConsulta = "https://sadevsiefexterno.z20.web.core.windows.net/pages/consulta.html";
+                    
+                    _logger.LogWarning($"🚀 INICIANDO PROCESO DE CORREOS PARA ENTIDAD: {entidadNombre} - TRAMITE: {numeroTramiteStr}");
+
+                    // Logs de prueba
+                    _logger.LogWarning("🔍 INICIANDO CONSULTA DE DESTINATARIOS...");
+                    
+                    // Consultar destinatarios por áreas específicas
+                    List<string> correosArea = new();
+                    var destinatariosPorArea = new Dictionary<string, List<(string nombre, string email)>>();
+                    var siglasAreas = new Dictionary<string, string>();
+                    
+                    try
+                    {
+                        // Primero obtener las siglas de las áreas
+                        string siglasQuery = @"
+                        SELECT TM02_Codigo, TM02_Nombre 
+                        FROM [SIIR-ProdV1].[dbo].[TM02_Area] 
+                        WHERE TM02_Codigo IN (52060, 52070, 59030)";
+                        
+                        using (SqlCommand cmdSiglas = new SqlCommand(siglasQuery, conn))
+                        {
+                            using (SqlDataReader readerSiglas = await cmdSiglas.ExecuteReaderAsync())
+                            {
+                                while (await readerSiglas.ReadAsync())
+                                {
+                                    string codigo = readerSiglas["TM02_Codigo"].ToString() ?? "";
+                                    string sigla = readerSiglas["TM02_Nombre"].ToString() ?? "";
+                                    siglasAreas[codigo] = sigla;
+                                }
+                            }
+                        }
+                        
+                        // Luego obtener los destinatarios
+                        string destinatariosQuery = @"
+                        SELECT 
+                            r.TM04_Nombre + ' ' + r.TM04_Apellidos AS NombreCompleto,
+                            r.TM04_EMail,
+                            s.TM03_Nombre AS Area,
+                            s.TM03_Codigo AS CodigoArea
+                        FROM [SistemasComunes].[dbo].[TM04_Responsables] r
+                        INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
+                        INNER JOIN [SistemasComunes].[dbo].[TM03_Subdirecciones] s ON r.TM04_TM03_Codigo = s.TM03_Codigo
+                        WHERE c.TM15_TM12_TM01_Codigo = 17 
+                        AND c.TM15_TM12_Ambiente = 'PROD'
+                        AND r.TM04_Activo = 1
+                        AND s.TM03_Codigo IN (52060, 52070, 59030)
+                        ORDER BY s.TM03_Codigo, r.TM04_Nombre";
+
+                        using (SqlCommand cmdDestinatarios = new SqlCommand(destinatariosQuery, conn))
+                        {
+                            using (SqlDataReader reader = await cmdDestinatarios.ExecuteReaderAsync())
+                            {
+                                while (await reader.ReadAsync())
+                                {
+                                    string nombre = reader["NombreCompleto"].ToString() ?? "";
+                                    string email = reader["TM04_EMail"].ToString() ?? "";
+                                    string area = reader["Area"].ToString() ?? "";
+                                    string codigoArea = reader["CodigoArea"].ToString() ?? "";
+                                    
+                                    if (!string.IsNullOrEmpty(email))
+                                    {
+                                        correosArea.Add(email);
+                                        
+                                        if (!destinatariosPorArea.ContainsKey(codigoArea))
+                                            destinatariosPorArea[codigoArea] = new List<(string, string)>();
+                                        
+                                        destinatariosPorArea[codigoArea].Add((nombre, email));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "❌ ERROR EN CONSULTA DE DESTINATARIOS");
+                    }
+                    
+                    // Mostrar destinatarios por consola
+                    _logger.LogWarning("📋 DESTINATARIOS AGRUPADOS POR ÁREA:");
+                    foreach (var area in destinatariosPorArea.OrderBy(x => x.Key))
+                    {
+                        string siglaArea = siglasAreas.ContainsKey(area.Key) ? siglasAreas[area.Key] : area.Key;
+                        _logger.LogWarning($"🏢 ÁREA {siglaArea}:");
+                        foreach (var (nombre, email) in area.Value)
+                        {
+                            _logger.LogWarning($"  📧 {nombre} - {email}");
+                        }
+                    }
+
+                    _logger.LogWarning("📧 PLANTILLAS DE CORREO POR ÁREA:");
+                    
+                    // Plantillas específicas por área
+                    foreach (var area in destinatariosPorArea.OrderBy(x => x.Key))
+                    {
+                        string siglaArea = siglasAreas.ContainsKey(area.Key) ? siglasAreas[area.Key] : area.Key;
+                        
+                        var plantillaArea = $@"
+                        <p>Doctor(a) {representanteLegal},</p>
+                        <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín, con el número del trámite <strong>{numeroTramiteStr}</strong>.</p>
+                        <p>Puede consultar el estado del trámite en el siguiente link: 
+                           <a href='{linkConsulta}'>{linkConsulta}</a></p>
+                        <p>Cordial saludo,<br/><br/>
+                        Departamento de Sistema de Seguro de Depósitos<br/>
+                        Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
+                        PBX: 601 4321370 extensiones 255 - 142</p>";
+                        
+                        _logger.LogWarning($"🏢 PLANTILLA ÁREA {siglaArea}: {plantillaArea}");
+                    }
+
+                    var plantillaUsuario = $@"
+                    <p>Estimado(a) {representanteLegal},</p>
+                    <p>Gracias por registrar la entidad <strong>{entidadNombre}</strong> en el Sistema de Inscripción de Entidades Financieras (SIEF).</p>
+                    <p>El trámite se ha registrado exitosamente con el número <strong>{numeroTramiteStr}</strong>.</p>
+                    <p>Puede consultar su estado en el siguiente enlace:</p>
+                    <p><a href='{linkConsulta}'>{linkConsulta}</a></p>
+                    <p>Atentamente,<br/><strong>Equipo Fogafín</strong></p>";
+
+                    _logger.LogWarning($"👤 PLANTILLA USUARIO: {plantillaUsuario}");
+
+                    // Armar JSON del correo a enviar
+                    var emailPayload = new
+                    {
+                        representanteLegal = representanteLegal,
+                        entidad = entidadNombre,
+                        numeroTramite = numeroTramiteStr,
+                        correosArea = correosArea,
+                        linkConsulta = linkConsulta
+                    };
+
+                    string emailPayloadJson = JsonConvert.SerializeObject(emailPayload, Formatting.Indented);
+                    _logger.LogWarning("📧 JSON del correo a enviar: " + emailPayloadJson);
+
                     var responseObj = new
                     {
                         TM08_Consecutivo = consecutivo,
