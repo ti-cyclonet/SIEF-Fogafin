@@ -72,6 +72,8 @@ namespace InscripcionEntidades
                 string localPdfPath = string.Empty;
                 string pdfUrl = string.Empty;
                 HttpResponseData okResponse;
+                int tm02Codigo = 0;
+                string numeroTramiteStr = string.Empty;
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
@@ -84,7 +86,6 @@ namespace InscripcionEntidades
                         return existsResponse;
                     }
 
-                    int tm02Codigo;
                     string getMaxCodeQuery = @"
                     SELECT ISNULL(MAX(TM02_CODIGO), 99899) + 1
                     FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA]
@@ -229,7 +230,7 @@ namespace InscripcionEntidades
                     // Preparar datos para envío de correo
                     string representanteLegal = $"{data.NombreRep} {data.ApellidoRep}";
                     string entidadNombre = data.Nombre;
-                    string numeroTramiteStr = $"{consecutivo}{tipoCodigo}{currentYear}";
+                    numeroTramiteStr = $"{consecutivo}{tipoCodigo}{currentYear}";
                     string linkConsulta = "https://sadevsiefexterno.z20.web.core.windows.net/pages/consulta.html";
                     
                     _logger.LogWarning($"🚀 INICIANDO PROCESO DE CORREOS PARA ENTIDAD: {entidadNombre} - TRAMITE: {numeroTramiteStr}");
@@ -498,7 +499,7 @@ namespace InscripcionEntidades
                                 attachments = new List<object>()
                             };
                             
-                            bool correoAreaEnviado = await EnviarCorreoAsync(emailAreaPayload);
+                            bool correoAreaEnviado = await EnviarCorreoAsync(emailAreaPayload, null, tm02Codigo, numeroTramiteStr);
                             _logger.LogWarning($"📨 Correo a {area.Key} enviado: {correoAreaEnviado}");
                         }
                     }
@@ -514,7 +515,7 @@ namespace InscripcionEntidades
                             attachments = new List<object>()
                         };
                         
-                        bool correoUsuarioEnviado = await EnviarCorreoAsync(emailUsuarioPayload, localPdfPath);
+                        bool correoUsuarioEnviado = await EnviarCorreoAsync(emailUsuarioPayload, localPdfPath, tm02Codigo, numeroTramiteStr);
                         _logger.LogWarning($"📧 Correo de confirmación enviado: {correoUsuarioEnviado}");
                     }
 
@@ -650,8 +651,9 @@ namespace InscripcionEntidades
             return (blobClient.Uri.ToString(), tempPath);
         }
 
-        private async Task<bool> EnviarCorreoAsync(object payload, string? pdfPath = null)
+        private async Task<bool> EnviarCorreoAsync(object payload, string? pdfPath = null, int? tm02Codigo = null, string? numeroTramite = null)
         {
+            string? connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
             try
             {
                 string baseUrl = "https://fn-email-corp-dev-eus2-h5cjfbeud6h7axab.eastus2-01.azurewebsites.net";
@@ -681,12 +683,15 @@ namespace InscripcionEntidades
                 }
 
                 var toList = payloadObj["to"]?.ToObject<List<string>>() ?? correosArray;
+                string subject = payloadObj["subject"]?.ToString() ?? "Registro de entidad";
+                string htmlBody = payloadObj["htmlBody"]?.ToString() ?? "<p>Registro completado</p>";
+                string destinatarios = string.Join(", ", toList);
 
                 var emailBody = new
                 {
                     to = toList,
-                    subject = payloadObj["subject"]?.ToString() ?? "Registro de entidad",
-                    htmlBody = payloadObj["htmlBody"]?.ToString() ?? "<p>Registro completado</p>",
+                    subject = subject,
+                    htmlBody = htmlBody,
                     attachments = attachments
                 };
 
@@ -694,11 +699,83 @@ namespace InscripcionEntidades
                 var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
                 var response = await httpClient.PostAsync("/api/send-email", content);
-                return response.IsSuccessStatusCode;
+                bool exitoso = response.IsSuccessStatusCode;
+
+                // Guardar log en TM80_LOG_CORREOS
+                if (!string.IsNullOrEmpty(connectionString) && tm02Codigo.HasValue)
+                {
+                    try
+                    {
+                        using (SqlConnection conn = new SqlConnection(connectionString))
+                        {
+                            await conn.OpenAsync();
+                            string insertLogCorreo = @"
+                            INSERT INTO [SIIR-ProdV1].[dbo].[TM80_LOG_CORREOS]
+                            (TM80_TM02_CODIGO, TM80_NUMERO_TRAMITE, TM80_DESTINATARIOS, TM80_ASUNTO, TM80_CUERPO, TM80_TIPO_CORREO, TM80_ESTADO_ENVIO, TM80_FECHA_ENVIO, TM80_USUARIO, TM80_ERROR_DETALLE)
+                            VALUES (@TM02Codigo, @NumeroTramite, @Destinatarios, @Asunto, @Cuerpo, @TipoCorreo, @EstadoEnvio, @FechaEnvio, @Usuario, @ErrorDetalle)";
+                            
+                            using (SqlCommand cmdLog = new SqlCommand(insertLogCorreo, conn))
+                            {
+                                cmdLog.Parameters.AddWithValue("@TM02Codigo", tm02Codigo.Value);
+                                cmdLog.Parameters.AddWithValue("@NumeroTramite", numeroTramite ?? "");
+                                cmdLog.Parameters.AddWithValue("@Destinatarios", destinatarios);
+                                cmdLog.Parameters.AddWithValue("@Asunto", subject);
+                                cmdLog.Parameters.AddWithValue("@Cuerpo", htmlBody.Length > 4000 ? htmlBody.Substring(0, 4000) : htmlBody);
+                                cmdLog.Parameters.AddWithValue("@TipoCorreo", "SIEF_INSCRIPCION");
+                                cmdLog.Parameters.AddWithValue("@EstadoEnvio", exitoso ? "ENVIADO" : "ERROR");
+                                cmdLog.Parameters.AddWithValue("@FechaEnvio", DateTime.Now);
+                                cmdLog.Parameters.AddWithValue("@Usuario", "SIEF_SYSTEM");
+                                cmdLog.Parameters.AddWithValue("@ErrorDetalle", exitoso ? (object)DBNull.Value : response.ReasonPhrase ?? "Error desconocido");
+                                await cmdLog.ExecuteNonQueryAsync();
+                            }
+                        }
+                    }
+                    catch (Exception logEx)
+                    {
+                        _logger.LogError(logEx, "Error al guardar log de correo en TM80");
+                    }
+                }
+
+                return exitoso;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al enviar correo.");
+                
+                // Guardar log de error
+                if (!string.IsNullOrEmpty(connectionString) && tm02Codigo.HasValue)
+                {
+                    try
+                    {
+                        using (SqlConnection conn = new SqlConnection(connectionString))
+                        {
+                            await conn.OpenAsync();
+                            string insertLogError = @"
+                            INSERT INTO [SIIR-ProdV1].[dbo].[TM80_LOG_CORREOS]
+                            (TM80_TM02_CODIGO, TM80_NUMERO_TRAMITE, TM80_DESTINATARIOS, TM80_ASUNTO, TM80_TIPO_CORREO, TM80_ESTADO_ENVIO, TM80_FECHA_ENVIO, TM80_USUARIO, TM80_ERROR_DETALLE)
+                            VALUES (@TM02Codigo, @NumeroTramite, @Destinatarios, @Asunto, @TipoCorreo, @EstadoEnvio, @FechaEnvio, @Usuario, @ErrorDetalle)";
+                            
+                            using (SqlCommand cmdLog = new SqlCommand(insertLogError, conn))
+                            {
+                                cmdLog.Parameters.AddWithValue("@TM02Codigo", tm02Codigo.Value);
+                                cmdLog.Parameters.AddWithValue("@NumeroTramite", numeroTramite ?? "");
+                                cmdLog.Parameters.AddWithValue("@Destinatarios", "Error al procesar");
+                                cmdLog.Parameters.AddWithValue("@Asunto", "Error en envío");
+                                cmdLog.Parameters.AddWithValue("@TipoCorreo", "SIEF_INSCRIPCION");
+                                cmdLog.Parameters.AddWithValue("@EstadoEnvio", "ERROR");
+                                cmdLog.Parameters.AddWithValue("@FechaEnvio", DateTime.Now);
+                                cmdLog.Parameters.AddWithValue("@Usuario", "SIEF_SYSTEM");
+                                cmdLog.Parameters.AddWithValue("@ErrorDetalle", ex.Message);
+                                await cmdLog.ExecuteNonQueryAsync();
+                            }
+                        }
+                    }
+                    catch (Exception logEx)
+                    {
+                        _logger.LogError(logEx, "Error al guardar log de error de correo en TM80");
+                    }
+                }
+                
                 return false;
             }
         }
@@ -807,7 +884,7 @@ namespace InscripcionEntidades
                         }
                     }
                     
-                    // Insertar en TM63_DOCUMENTOS_NOTIFICACION
+                    // Insertar en TM63_DOCUMENTOS_NOTIFICACION con código 42 (SIEF: Inscripción registrada)
                     string insertDocumento = @"
                     INSERT INTO [SIIR-ProdV1].[dbo].[TM63_DOCUMENTOS_NOTIFICACION]
                     (TM63_TM61_Codigo, TM63_TM59_Codigo, TM63_Texto, TM63_Ruta_Generado, TM63_Fecha_Creacion, TM63_Usuario_Creacion)

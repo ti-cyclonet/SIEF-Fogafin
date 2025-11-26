@@ -415,9 +415,22 @@ EXEC sp_rename '[SIIR-ProdV1].[dbo].[TN05_Historico_Estado].[TN05_TN04_Codigo]',
 INSERT INTO [SIIR-ProdV1].[dbo].[TM59_TIPOS_FORMATO] 
     ([TM59_Descripcion])
 VALUES 
-    ('SIEF: Inscripción registrada. En validación de documentos.');             
+    ('SIEF: Inscripción registrada. En validación de documentos.');         
 
+INSERT INTO [SIIR-ProdV1].[dbo].[TM59_TIPOS_FORMATO] 
+    ([TM59_Descripcion])
+VALUES 
+    ('SIEF: En validación del pago.');     
 
+INSERT INTO [SIIR-ProdV1].[dbo].[TM59_TIPOS_FORMATO] 
+    ([TM59_Descripcion])
+VALUES 
+    ('SIEF: Pendiente de aprobación final.'); 
+
+INSERT INTO [SIIR-ProdV1].[dbo].[TM59_TIPOS_FORMATO] 
+    ([TM59_Descripcion])
+VALUES 
+    ('SIEF: Entidad inscrita.'); 
 
     -- Script para crear tabla TM80_LOG_CORREOS
 -- Tabla para registrar el log de todos los correos enviados por el sistema
