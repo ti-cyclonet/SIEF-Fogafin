@@ -20,7 +20,7 @@ namespace InscripcionEntidades
         public async Task<HttpResponseData> ConsultarUsuarios(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "usuarios")] HttpRequestData req)
         {
-            _logger.LogInformation("=== INICIANDO CONSULTA DE USUARIOS SIEF ===");
+
 
             try
             {
@@ -69,57 +69,10 @@ namespace InscripcionEntidades
                             }
                         }
 
-                        // Agrupar por área y mostrar en consola
-                        var usuariosPorArea = usuarios.GroupBy(u => ((dynamic)u).CodigoArea)
-                            .OrderBy(g => g.Key);
 
-                        _logger.LogInformation("📋 DESTINATARIOS AGRUPADOS POR ÁREA:");
-                        foreach (var grupo in usuariosPorArea)
-                        {
-                            var primeraArea = grupo.First();
-                            _logger.LogInformation($"\n🏢 ÁREA {((dynamic)primeraArea).CodigoArea}: {((dynamic)primeraArea).Area}");
-                            
-                            foreach (var usuario in grupo)
-                            {
-                                var u = (dynamic)usuario;
-                                _logger.LogInformation($"  📧 {u.NombreCompleto} - {u.TM04_EMail}");
-                            }
-                        }
 
-                        // Plantillas de correo
-                        string representanteLegal = "Juan Pérez García";
-                        string entidadNombre = "Banco Ejemplo S.A.";
-                        string numeroTramiteStr = "123456789";
-                        string linkConsulta = "https://sadevsiefexterno.z20.web.core.windows.net/pages/consulta.html";
 
-                        _logger.LogInformation("\n📧 PLANTILLAS DE CORREO:");
-                        
-                        // Plantilla para área responsable
-                        var plantillaArea = $@"
-                        <p>Doctor(a) {representanteLegal},</p>
-                        <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín, con el número del trámite <strong>{numeroTramiteStr}</strong>.</p>
-                        <p>Puede consultar el estado del trámite en el siguiente link: 
-                           <a href='{linkConsulta}'>{linkConsulta}</a></p>
-                        <p>Cordial saludo,<br/><br/>
- 
-                        Departamento de Sistema de Seguro de Depósitos<br/>
-                        Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
-                        PBX: 601 4321370 extensiones 255 - 142</p>";
 
-                        _logger.LogInformation($"\n🏢 PLANTILLA ÁREA RESPONSABLE:\n{plantillaArea}");
-
-                        // Plantilla para usuario
-                        var plantillaUsuario = $@"
-                        <p>Estimado(a) {representanteLegal},</p>
-                        <p>Gracias por registrar la entidad <strong>{entidadNombre}</strong> en el Sistema de Inscripción de Entidades Financieras (SIEF).</p>
-                        <p>El trámite se ha registrado exitosamente con el número <strong>{numeroTramiteStr}</strong>.</p>
-                        <p>Puede consultar su estado en el siguiente enlace:</p>
-                        <p><a href='{linkConsulta}'>{linkConsulta}</a></p>
-                        <p>Atentamente,<br/><strong>Equipo Fogafín</strong></p>";
-
-                        _logger.LogInformation($"\n👤 PLANTILLA USUARIO:\n{plantillaUsuario}");
-                        
-                        _logger.LogInformation("=== FIN DE CONSULTA DE USUARIOS SIEF ===");
 
                         var response = req.CreateResponse(HttpStatusCode.OK);
                         response.Headers.Add("Content-Type", "application/json");
