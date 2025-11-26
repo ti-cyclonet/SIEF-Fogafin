@@ -141,6 +141,11 @@
                     </table>
                 </div>
 
+                <!-- Paginación -->
+                <div class="d-flex justify-content-center mt-4" id="paginacion">
+                    <!-- Se genera dinámicamente -->
+                </div>
+
                 <!-- Botones de navegación -->
                 <div class="d-flex justify-content-center mt-4">
                     <button type="button" class="btn btn-secondary me-3" id="btnLimpiar">
@@ -182,22 +187,24 @@
                             </div>
                         </div>
                         
-                        <div class="row mt-3" id="datosUsuario" style="display: none;">
-                            <div class="col-md-6">
-                                <label class="form-label">Identificación</label>
-                                <input type="text" class="form-control" id="identificacion" readonly>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Nombre Completo</label>
-                                <input type="text" class="form-control" id="nombreCompleto" readonly>
+                        <!-- Información del Usuario Seleccionado -->
+                        <div id="datosUsuario" style="display: none;" class="mt-4">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading"><i class="fas fa-user me-2"></i>Información del Usuario</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <strong>Identificación:</strong> <span id="identificacion"></span><br>
+                                        <strong>Nombre:</strong> <span id="nombreCompleto"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Área:</strong> <span id="area"></span><br>
+                                        <strong>Email:</strong> <span id="email"></span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         <div class="row mt-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Área</label>
-                                <input type="text" class="form-control" id="area" readonly>
-                            </div>
                             <div class="col-md-6">
                                 <label class="form-label">Perfil SIEF *</label>
                                 <select class="form-select" id="perfil" required>
@@ -208,13 +215,6 @@
                                     <option value="Profesional DOT">Profesional DOT</option>
                                     <option value="Consulta">Consulta</option>
                                 </select>
-                            </div>
-                        </div>
-
-                        <div class="row mt-3">
-                            <div class="col-md-12">
-                                <label class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" readonly>
                             </div>
                         </div>
 
@@ -241,6 +241,8 @@
         // Datos de usuarios
         let usuarios = [];
         let usuariosDisponibles = [];
+        let currentPage = 1;
+        let totalPages = 1;
         
         // Mapeo de áreas
         const areasMap = {
@@ -312,12 +314,12 @@
             document.getElementById('btnGuardarUsuario').addEventListener('click', guardarUsuario);
         }
 
-        async function cargarUsuariosDesdeAPI() {
+        async function cargarUsuariosDesdeAPI(page = 1) {
             try {
-                const response = await fetch('http://localhost:7176/api/usuarios');
-                const usuariosData = await response.json();
+                const response = await fetch(`http://localhost:7176/api/usuarios?page=${page}`);
+                const data = await response.json();
                 
-                usuarios = usuariosData.map(u => ({
+                usuarios = data.usuarios.map(u => ({
                     identificacion: u.TM04_Identificacion,
                     nombreCompleto: u.NombreCompleto,
                     area: u.Area,
@@ -326,19 +328,15 @@
                     estado: u.Estado,
                     codigoArea: u.CodigoArea
                 }));
+                
+                currentPage = data.currentPage;
+                totalPages = data.totalPages;
+                
                 cargarTablaUsuarios();
+                actualizarPaginacion();
             } catch (error) {
                 console.error('Error al cargar usuarios:', error);
-                usuarios = [
-                    {
-                        identificacion: 'admin.sief',
-                        nombreCompleto: 'Administrador SIEF',
-                        area: 'SSD',
-                        perfil: 'Jefe SSD',
-                        email: 'admin@fogafin.gov.co',
-                        estado: 'Activo'
-                    }
-                ];
+                usuarios = [];
                 cargarTablaUsuarios();
             }
         }
@@ -452,11 +450,11 @@
                 document.getElementById('buscadorUsuario').value = `${usuario.nombreCompleto} (${usuario.identificacion})`;
                 document.getElementById('buscadorUsuario').disabled = true;
                 document.getElementById('usuarioDisponible').value = usuario.identificacion;
-                document.getElementById('identificacion').value = usuario.identificacion;
-                document.getElementById('nombreCompleto').value = usuario.nombreCompleto;
-                document.getElementById('area').value = usuario.area;
+                document.getElementById('identificacion').textContent = usuario.identificacion;
+                document.getElementById('nombreCompleto').textContent = usuario.nombreCompleto;
+                document.getElementById('area').textContent = usuario.area;
                 document.getElementById('perfil').value = usuario.perfil;
-                document.getElementById('email').value = usuario.email;
+                document.getElementById('email').textContent = usuario.email;
                 document.getElementById('datosUsuario').style.display = 'block';
                 
                 mostrarPermisos();
@@ -500,10 +498,10 @@
             if (usuario) {
                 document.getElementById('buscadorUsuario').value = `${usuario.NombreCompleto} (${usuario.TM04_Identificacion})`;
                 document.getElementById('usuarioDisponible').value = identificacion;
-                document.getElementById('identificacion').value = usuario.TM04_Identificacion;
-                document.getElementById('nombreCompleto').value = usuario.NombreCompleto;
-                document.getElementById('area').value = usuario.Area;
-                document.getElementById('email').value = usuario.TM04_EMail || '';
+                document.getElementById('identificacion').textContent = usuario.TM04_Identificacion;
+                document.getElementById('nombreCompleto').textContent = usuario.NombreCompleto;
+                document.getElementById('area').textContent = usuario.Area;
+                document.getElementById('email').textContent = usuario.TM04_EMail || 'No disponible';
                 document.getElementById('datosUsuario').style.display = 'block';
                 
                 const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('buscadorUsuario'));
@@ -531,7 +529,7 @@
             const id = document.getElementById('usuarioId').value;
             const modoEdicion = document.getElementById('modoEdicion').value === 'true';
             const usuarioData = {
-                identificacion: document.getElementById('identificacion').value,
+                identificacion: document.getElementById('usuarioDisponible').value,
                 perfil: document.getElementById('perfil').value
             };
 
@@ -543,9 +541,9 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             ...usuarioData,
-                            nombreCompleto: document.getElementById('nombreCompleto').value,
-                            area: document.getElementById('area').value,
-                            email: document.getElementById('email').value,
+                            nombreCompleto: document.getElementById('nombreCompleto').textContent,
+                            area: document.getElementById('area').textContent,
+                            email: document.getElementById('email').textContent,
                             estado: 'Activo'
                         })
                     });
@@ -644,6 +642,38 @@
         function cerrarPagina() {
             limpiarPagina();
             window.location.href = 'dashboard.html';
+        }
+
+        function actualizarPaginacion() {
+            const paginacionDiv = document.getElementById('paginacion');
+            if (totalPages <= 1) {
+                paginacionDiv.innerHTML = '';
+                return;
+            }
+
+            let html = '<nav><ul class="pagination">';
+            
+            // Botón anterior
+            html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">`;
+            html += `<a class="page-link" href="#" onclick="cambiarPagina(${currentPage - 1})">Anterior</a></li>`;
+            
+            // Números de página
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<li class="page-item ${i === currentPage ? 'active' : ''}">`;
+                html += `<a class="page-link" href="#" onclick="cambiarPagina(${i})">${i}</a></li>`;
+            }
+            
+            // Botón siguiente
+            html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">`;
+            html += `<a class="page-link" href="#" onclick="cambiarPagina(${currentPage + 1})">Siguiente</a></li>`;
+            
+            html += '</ul></nav>';
+            paginacionDiv.innerHTML = html;
+        }
+
+        function cambiarPagina(page) {
+            if (page < 1 || page > totalPages || page === currentPage) return;
+            cargarUsuariosDesdeAPI(page);
         }
     </script>
 </body>

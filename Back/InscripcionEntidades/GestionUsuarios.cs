@@ -24,11 +24,28 @@ namespace InscripcionEntidades
 
             try
             {
+                var queryParams = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
+                int page = int.TryParse(queryParams["page"], out int p) ? p : 1;
+                int pageSize = 8;
+                int offset = (page - 1) * pageSize;
+
                 string connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
 
                 using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
+
+                    string countQuery = @"
+                        SELECT COUNT(*)
+                        FROM [SistemasComunes].[dbo].[TM04_Responsables] r
+                        INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
+                        WHERE c.TM15_TM12_TM01_Codigo = 17 AND c.TM15_TM12_Ambiente IN ('PROD', 'PRODUCCION')";
+
+                    int totalRecords;
+                    using (var countCommand = new SqlCommand(countQuery, connection))
+                    {
+                        totalRecords = (int)await countCommand.ExecuteScalarAsync();
+                    }
 
                     string query = @"
                         SELECT 
@@ -44,11 +61,15 @@ namespace InscripcionEntidades
                         INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
                         INNER JOIN [SistemasComunes].[dbo].[TM03_Subdirecciones] s ON r.TM04_TM03_Codigo = s.TM03_Codigo
                         INNER JOIN [SistemasComunes].[dbo].[TM14_PerfilesAplicacion] p ON c.TM15_TM14_Perfil = p.TM14_Perfil AND p.TM14_TM01_Codigo = 17
-                        WHERE c.TM15_TM12_TM01_Codigo = 17 AND c.TM15_TM12_Ambiente = 'PROD'
-                        ORDER BY r.TM04_Nombre, r.TM04_Apellidos";
+                        WHERE c.TM15_TM12_TM01_Codigo = 17 AND c.TM15_TM12_Ambiente IN ('PROD', 'PRODUCCION')
+                        ORDER BY r.TM04_Nombre, r.TM04_Apellidos
+                        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
                     using (var command = new SqlCommand(query, connection))
                     {
+                        command.Parameters.AddWithValue("@Offset", offset);
+                        command.Parameters.AddWithValue("@PageSize", pageSize);
+                        
                         var usuarios = new List<object>();
 
                         using (var reader = await command.ExecuteReaderAsync())
@@ -69,14 +90,18 @@ namespace InscripcionEntidades
                             }
                         }
 
-
-
-
-
+                        var result = new
+                        {
+                            usuarios = usuarios,
+                            totalRecords = totalRecords,
+                            currentPage = page,
+                            pageSize = pageSize,
+                            totalPages = (int)Math.Ceiling((double)totalRecords / pageSize)
+                        };
 
                         var response = req.CreateResponse(HttpStatusCode.OK);
                         response.Headers.Add("Content-Type", "application/json");
-                        await response.WriteStringAsync(JsonSerializer.Serialize(usuarios));
+                        await response.WriteStringAsync(JsonSerializer.Serialize(result));
                         return response;
                     }
                 }
@@ -346,11 +371,11 @@ namespace InscripcionEntidades
                         FROM [SistemasComunes].[dbo].[TM04_Responsables] r
                         INNER JOIN [SistemasComunes].[dbo].[TM03_Subdirecciones] s ON r.TM04_TM03_Codigo = s.TM03_Codigo
                         WHERE r.TM04_Activo = 1
-                        AND r.TM04_TM03_Codigo IN (59030, 52060, 52050, 52070, 59010)
                         AND NOT EXISTS (
                             SELECT 1 FROM [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c
                             WHERE c.TM15_TM04_Identificacion = r.TM04_Identificacion 
                             AND c.TM15_TM12_TM01_Codigo = 17
+                            AND c.TM15_TM12_Ambiente = 'PROD'
                         )
                         ORDER BY r.TM04_Nombre, r.TM04_Apellidos";
 

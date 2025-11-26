@@ -132,7 +132,7 @@ namespace InscripcionEntidades
         private bool SimularDirectorioActivo(string usuario)
         {
             // Simulación: usuarios que existen en AD
-            var usuariosValidos = new[] { "adminSief", "AlfredoMamby", "SPinzon" };
+            var usuariosValidos = new[] { "adminSief", "AlfredoMamby" };
             return usuariosValidos.Contains(usuario, StringComparer.OrdinalIgnoreCase);
         }
     }
