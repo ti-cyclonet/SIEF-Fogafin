@@ -70,6 +70,8 @@ namespace InscripcionEntidades
                 string tipoCodigo = data.TipoEntidad.ToString();
                 string nombreResponsableAsignado = string.Empty;
                 string localPdfPath = string.Empty;
+                string pdfUrl = string.Empty;
+                HttpResponseData okResponse;
 
                 using (SqlConnection conn = new SqlConnection(connectionString))
                 {
@@ -85,7 +87,7 @@ namespace InscripcionEntidades
                     int tm02Codigo;
                     string getMaxCodeQuery = @"
                     SELECT ISNULL(MAX(TM02_CODIGO), 99899) + 1
-                    FROM dbo.TM02_ENTIDADFINANCIERA
+                    FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA]
                     WHERE TM02_CODIGO >= 99900";
                     
                     using (SqlCommand cmdMaxCode = new SqlCommand(getMaxCodeQuery, conn))
@@ -95,7 +97,7 @@ namespace InscripcionEntidades
                     }
 
                     string insertTM02 = @"
-                    INSERT INTO dbo.TM02_ENTIDADFINANCIERA 
+                    INSERT INTO [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] 
                     (TM02_CODIGO, TM02_TM01_CODIGO, TM02_NIT, TM02_NOMBRE, TM02_FECHAINSCRIPCION, TM02_ACTIVO, TM02_TIPOINFORME)
                     VALUES (@Codigo, 12, @Nit, @Nombre, @Fecha, 0, '0100');";
 
@@ -109,7 +111,7 @@ namespace InscripcionEntidades
                     }
 
                     string insertTM08 = @"
-                    INSERT INTO dbo.TM08_ConsecutivoEnt (TM08_TM01_Codigo, TM08_Ano)
+                    INSERT INTO [SIIR-ProdV1].[dbo].[TM08_ConsecutivoEnt] (TM08_TM01_Codigo, TM08_Ano)
                     OUTPUT INSERTED.TM08_Consecutivo
                     VALUES (@TipoEntidad, @Ano);";
 
@@ -123,11 +125,12 @@ namespace InscripcionEntidades
 
                     int numeroTramite = int.Parse($"{consecutivo}{tipoCodigo}{currentYear}");
 
-                    var (pdfUrl, localPath) = await GenerarYSubirResumenPdf(data, numeroTramite);
+                    var (pdfUrlTemp, localPath) = await GenerarYSubirResumenPdf(data, numeroTramite);
+                    pdfUrl = pdfUrlTemp;
                     localPdfPath = localPath;
 
                     string updateTM02 = @"
-                    UPDATE dbo.TM02_ENTIDADFINANCIERA SET
+                    UPDATE [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] SET
                         TM02_TM08_Consecutivo = @Consecutivo,
                         TM02_TM01_CodigoSectorF = @TipoEntidad,
                         TM02_Correo_Noti = @CorreoNoti,
@@ -187,7 +190,7 @@ namespace InscripcionEntidades
                     if (data.ArchivosAdjuntos != null && data.ArchivosAdjuntos.Count > 0)
                     {
                         string insertAdjunto = @"
-                        INSERT INTO dbo.TN07_Adjuntos (TN07_TM02_Codigo, TN07_Archivo, TN07_Fecha)
+                        INSERT INTO [SIIR-ProdV1].[dbo].[TN07_Adjuntos] (TN07_TM02_Codigo, TN07_Archivo, TN07_Fecha)
                         VALUES (@TM02Codigo, @Archivo, @Fecha);";
 
                         foreach (string archivo in data.ArchivosAdjuntos)
@@ -524,7 +527,7 @@ namespace InscripcionEntidades
                         Departamento = "SSD"
                     };
 
-                    var okResponse = req.CreateResponse(HttpStatusCode.OK);
+                    okResponse = req.CreateResponse(HttpStatusCode.OK);
                     okResponse.Headers.Add("Content-Type", "application/json");
                     await okResponse.WriteStringAsync(JsonConvert.SerializeObject(responseObj));
 
@@ -533,8 +536,13 @@ namespace InscripcionEntidades
                         File.Delete(localPdfPath);
                     }
 
-                    return okResponse;
                 }
+
+                // Ejecutar sistema de notificaciones con delay
+                await Task.Delay(1000); // Esperar 1 segundo
+                await CrearNotificacionAsync(data.Nit, data.Nombre, data.TipoEntidad, pdfUrl, currentYear, connectionString);
+
+                return okResponse;
             }
             catch (Exception ex)
             {
@@ -692,6 +700,154 @@ namespace InscripcionEntidades
             {
                 _logger.LogError(ex, "Error al enviar correo.");
                 return false;
+            }
+        }
+
+        private async Task CrearNotificacionAsync(string nit, string nombreEntidad, int tipoEntidad, string pdfUrl, int currentYear, string connectionString)
+        {
+            try
+            {
+                
+                using (SqlConnection conn = new SqlConnection(connectionString))
+                {
+                    await conn.OpenAsync();
+                    
+                    // Buscar el TM02_CODIGO y TM02_TM01_CODIGO por NIT
+                    string buscarCodigoQuery = @"
+                    SELECT TM02_CODIGO, TM02_TM01_CODIGO FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] 
+                    WHERE TM02_NIT = @Nit";
+                    
+                    int tm02Codigo;
+                    int tm02TM01Codigo;
+                    using (SqlCommand cmdBuscar = new SqlCommand(buscarCodigoQuery, conn))
+                    {
+                        cmdBuscar.Parameters.AddWithValue("@Nit", nit);
+                        using (SqlDataReader reader = await cmdBuscar.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                tm02Codigo = Convert.ToInt32(reader["TM02_CODIGO"]);
+                                tm02TM01Codigo = reader["TM02_TM01_CODIGO"] == DBNull.Value ? 12 : Convert.ToInt32(reader["TM02_TM01_CODIGO"]);
+                                _logger.LogWarning($"Entidad encontrada: TM02_CODIGO = {tm02Codigo}, TM02_TM01_CODIGO = {tm02TM01Codigo}");
+                            }
+                            else
+                            {
+                                _logger.LogWarning($"No se encontró entidad con NIT {nit}");
+                                return;
+                            }
+                        }
+                    }
+                    
+                    // Verificar que el código existe antes de insertar
+                    string verificarQuery = @"
+                    SELECT COUNT(*) FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] 
+                    WHERE TM02_CODIGO = @Codigo";
+                    
+                    using (SqlCommand cmdVerificar = new SqlCommand(verificarQuery, conn))
+                    {
+                        cmdVerificar.Parameters.AddWithValue("@Codigo", tm02Codigo);
+                        int count = Convert.ToInt32(await cmdVerificar.ExecuteScalarAsync());
+                        _logger.LogWarning($"Verificación: TM02_CODIGO {tm02Codigo} existe {count} veces");
+                        if (count == 0)
+                        {
+                            _logger.LogWarning($"TM02_CODIGO {tm02Codigo} no existe en la tabla");
+                            return;
+                        }
+                    }
+                    
+                    // Verificar en qué tabla TM01 existe el código
+                    string verificarSectorQuery = @"
+                    SELECT COUNT(*) FROM [SIIR-ProdV1].[dbo].[TM01_SectorFinanciero] 
+                    WHERE TM01_CODIGO = @TM01Codigo";
+                    
+                    string verificarEstadoQuery = @"
+                    SELECT COUNT(*) FROM [SIIR-ProdV1].[dbo].[TM01_Estado] 
+                    WHERE TM01_Codigo = @TM01Codigo";
+                    
+                    using (SqlCommand cmdSector = new SqlCommand(verificarSectorQuery, conn))
+                    {
+                        cmdSector.Parameters.AddWithValue("@TM01Codigo", tipoEntidad);
+                        int countSector = Convert.ToInt32(await cmdSector.ExecuteScalarAsync());
+                        _logger.LogWarning($"TM01_CODIGO {tipoEntidad} en TM01_SectorFinanciero: {countSector} veces");
+                    }
+                    
+                    using (SqlCommand cmdEstado = new SqlCommand(verificarEstadoQuery, conn))
+                    {
+                        cmdEstado.Parameters.AddWithValue("@TM01Codigo", tipoEntidad);
+                        int countEstado = Convert.ToInt32(await cmdEstado.ExecuteScalarAsync());
+                        _logger.LogWarning($"TM01_Codigo {tipoEntidad} en TM01_Estado: {countEstado} veces");
+                    }
+                    
+                    int currentTrimestre = (DateTime.Now.Month - 1) / 3 + 1;
+                    
+                    // Insertar en TM61_ENTIDADES_NOTIFICACION
+                    _logger.LogWarning($"Insertando TM61: Anio={currentYear}, Trimestre={currentTrimestre}, TM02_Codigo={tm02Codigo}, TM01_Codigo={tipoEntidad}, TM62_Codigo=1");
+                    
+                    string insertNotificacion = @"
+                    INSERT INTO [SIIR-ProdV1].[dbo].[TM61_ENTIDADES_NOTIFICACION] 
+                    (TM61_Anio, TM61_Trimestre, TM61_TM02_Codigo, TM61_TM01_Codigo, TM61_TM62_Codigo, TM61_Fecha_Ingreso)
+                    OUTPUT INSERTED.TM61_Codigo
+                    VALUES (@Anio, @Trimestre, @TM02Codigo, @TM01Codigo, 1, @FechaIngreso)";
+                    
+                    int tm61Codigo;
+                    using (SqlCommand cmdNotif = new SqlCommand(insertNotificacion, conn))
+                    {
+                        cmdNotif.Parameters.AddWithValue("@Anio", currentYear);
+                        cmdNotif.Parameters.AddWithValue("@Trimestre", currentTrimestre);
+                        cmdNotif.Parameters.AddWithValue("@TM02Codigo", tm02Codigo);
+                        cmdNotif.Parameters.AddWithValue("@TM01Codigo", tm02TM01Codigo);
+                        cmdNotif.Parameters.AddWithValue("@FechaIngreso", DateTime.Now);
+                        
+                        try {
+                            tm61Codigo = Convert.ToInt32(await cmdNotif.ExecuteScalarAsync());
+                            _logger.LogWarning($"TM61 insertado exitosamente con código: {tm61Codigo}");
+                        } catch (Exception ex) {
+                            _logger.LogError($"Error en INSERT TM61: {ex.Message}");
+                            throw;
+                        }
+                    }
+                    
+                    // Insertar en TM63_DOCUMENTOS_NOTIFICACION
+                    string insertDocumento = @"
+                    INSERT INTO [SIIR-ProdV1].[dbo].[TM63_DOCUMENTOS_NOTIFICACION]
+                    (TM63_TM61_Codigo, TM63_TM59_Codigo, TM63_Texto, TM63_Ruta_Generado, TM63_Fecha_Creacion, TM63_Usuario_Creacion)
+                    VALUES (@TM61Codigo, 42, @Texto, @RutaGenerado, @FechaCreacion, @UsuarioCreacion)";
+                    
+                    using (SqlCommand cmdDoc = new SqlCommand(insertDocumento, conn))
+                    {
+                        cmdDoc.Parameters.AddWithValue("@TM61Codigo", tm61Codigo);
+                        cmdDoc.Parameters.AddWithValue("@Texto", $"Resumen de inscripción - {nombreEntidad}");
+                        cmdDoc.Parameters.AddWithValue("@RutaGenerado", pdfUrl);
+                        cmdDoc.Parameters.AddWithValue("@FechaCreacion", DateTime.Now);
+                        cmdDoc.Parameters.AddWithValue("@UsuarioCreacion", "SIEF_SYSTEM");
+                        await cmdDoc.ExecuteNonQueryAsync();
+                    }
+                    
+                    // Insertar en TM64_LOG_NOTIFICACION
+                    string insertLog = @"
+                    INSERT INTO [SIIR-ProdV1].[dbo].[TM64_LOG_NOTIFICACION]
+                    (TM64_Anio, TM64_Trimestre, TM64_TM61_Codigo, TM64_TM02_Codigo, TM64_TM01_Codigo, TM64_TM62_Codigo_Ant, TM64_TM62_Codigo_Act, TM64_Usuario, TM64_Descripción_Accion, TM64_Fecha_Accion)
+                    VALUES (@Anio, @Trimestre, @TM61Codigo, @TM02Codigo, @TM01Codigo, NULL, 1, @Usuario, @Descripcion, @FechaAccion)";
+                    
+                    using (SqlCommand cmdLog = new SqlCommand(insertLog, conn))
+                    {
+                        cmdLog.Parameters.AddWithValue("@Anio", currentYear);
+                        cmdLog.Parameters.AddWithValue("@Trimestre", currentTrimestre);
+                        cmdLog.Parameters.AddWithValue("@TM61Codigo", tm61Codigo);
+                        cmdLog.Parameters.AddWithValue("@TM02Codigo", tm02Codigo);
+                        cmdLog.Parameters.AddWithValue("@TM01Codigo", tm02TM01Codigo);
+                        cmdLog.Parameters.AddWithValue("@Usuario", "SIEF_SYSTEM");
+                        cmdLog.Parameters.AddWithValue("@Descripcion", "Registro inicial de entidad - Estado GENERADO");
+                        cmdLog.Parameters.AddWithValue("@FechaAccion", DateTime.Now);
+                        await cmdLog.ExecuteNonQueryAsync();
+                    }
+                    
+                    _logger.LogInformation($"✅ Sistema de notificaciones: Registro creado TM61_Codigo={tm61Codigo}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error al crear registro en sistema de notificaciones (asíncrono)");
             }
         }
     }
