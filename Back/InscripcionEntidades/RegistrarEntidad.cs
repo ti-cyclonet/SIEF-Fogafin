@@ -211,6 +211,22 @@ namespace InscripcionEntidades
 
                     _logger.LogWarning("✅ ADJUNTOS PROCESADOS - INICIANDO CORREOS");
 
+                    // Insertar estado inicial en TN05_Historico_Estado
+                    string insertEstado = @"
+                    INSERT INTO [SIIR-ProdV1].[dbo].[TN05_Historico_Estado]
+                    (TN05_TM02_Tipo, TN05_TM02_Codigo, TN05_TM01_EstadoAnterior, TN05_TM01_EstadoActual, TN05_Fecha, TN05_TN03_Usuario, TN05_Observaciones)
+                    VALUES (@TipoSector, @TM02Codigo, NULL, 12, @Fecha, @Usuario, @Observaciones)";
+
+                    using (SqlCommand cmdEstado = new SqlCommand(insertEstado, conn))
+                    {
+                        cmdEstado.Parameters.AddWithValue("@TipoSector", data.TipoEntidad);
+                        cmdEstado.Parameters.AddWithValue("@TM02Codigo", tm02Codigo);
+                        cmdEstado.Parameters.AddWithValue("@Fecha", DateTime.Now);
+                        cmdEstado.Parameters.AddWithValue("@Usuario", "USUARIOWEB");
+                        cmdEstado.Parameters.AddWithValue("@Observaciones", "Estado inicial - Entidad registrada");
+                        await cmdEstado.ExecuteNonQueryAsync();
+                    }
+
                     // Obtener nombre del responsable asignado
                     string responsableQuery = @"
                     SELECT TOP 1 TM04_Nombre + ' ' + TM04_Apellidos
@@ -724,7 +740,7 @@ namespace InscripcionEntidades
                                 cmdLog.Parameters.AddWithValue("@TipoCorreo", "SIEF_INSCRIPCION");
                                 cmdLog.Parameters.AddWithValue("@EstadoEnvio", exitoso ? "ENVIADO" : "ERROR");
                                 cmdLog.Parameters.AddWithValue("@FechaEnvio", DateTime.Now);
-                                cmdLog.Parameters.AddWithValue("@Usuario", "SIEF_SYSTEM");
+                                cmdLog.Parameters.AddWithValue("@Usuario", "USUARIOWEB");
                                 cmdLog.Parameters.AddWithValue("@ErrorDetalle", exitoso ? (object)DBNull.Value : response.ReasonPhrase ?? "Error desconocido");
                                 await cmdLog.ExecuteNonQueryAsync();
                             }
@@ -764,7 +780,7 @@ namespace InscripcionEntidades
                                 cmdLog.Parameters.AddWithValue("@TipoCorreo", "SIEF_INSCRIPCION");
                                 cmdLog.Parameters.AddWithValue("@EstadoEnvio", "ERROR");
                                 cmdLog.Parameters.AddWithValue("@FechaEnvio", DateTime.Now);
-                                cmdLog.Parameters.AddWithValue("@Usuario", "SIEF_SYSTEM");
+                                cmdLog.Parameters.AddWithValue("@Usuario", "USUARIOWEB");
                                 cmdLog.Parameters.AddWithValue("@ErrorDetalle", ex.Message);
                                 await cmdLog.ExecuteNonQueryAsync();
                             }
@@ -896,7 +912,7 @@ namespace InscripcionEntidades
                         cmdDoc.Parameters.AddWithValue("@Texto", $"Resumen de inscripción - {nombreEntidad}");
                         cmdDoc.Parameters.AddWithValue("@RutaGenerado", pdfUrl);
                         cmdDoc.Parameters.AddWithValue("@FechaCreacion", DateTime.Now);
-                        cmdDoc.Parameters.AddWithValue("@UsuarioCreacion", "SIEF_SYSTEM");
+                        cmdDoc.Parameters.AddWithValue("@UsuarioCreacion", "USUARIOWEB");
                         await cmdDoc.ExecuteNonQueryAsync();
                     }
                     
@@ -913,7 +929,7 @@ namespace InscripcionEntidades
                         cmdLog.Parameters.AddWithValue("@TM61Codigo", tm61Codigo);
                         cmdLog.Parameters.AddWithValue("@TM02Codigo", tm02Codigo);
                         cmdLog.Parameters.AddWithValue("@TM01Codigo", tm02TM01Codigo);
-                        cmdLog.Parameters.AddWithValue("@Usuario", "SIEF_SYSTEM");
+                        cmdLog.Parameters.AddWithValue("@Usuario", "USUARIOWEB");
                         cmdLog.Parameters.AddWithValue("@Descripcion", "Registro inicial de entidad - Estado GENERADO");
                         cmdLog.Parameters.AddWithValue("@FechaAccion", DateTime.Now);
                         await cmdLog.ExecuteNonQueryAsync();
