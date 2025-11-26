@@ -227,6 +227,46 @@ namespace InscripcionEntidades
                         await cmdEstado.ExecuteNonQueryAsync();
                     }
 
+                    // Insertar pago por inscripción en TN06_Pagos
+                    if (data.ValorPagado > 0)
+                    {
+                        int? comprobanteId = null;
+                        
+                        // Buscar el ID del comprobante en TN07_Adjuntos
+                        if (!string.IsNullOrEmpty(data.RutaComprobantePago))
+                        {
+                            string buscarComprobante = @"
+                            SELECT TN07_Id FROM [SIIR-ProdV1].[dbo].[TN07_Adjuntos] 
+                            WHERE TN07_TM02_Codigo = @TM02Codigo AND TN07_Archivo = @Archivo";
+                            
+                            using (SqlCommand cmdBuscar = new SqlCommand(buscarComprobante, conn))
+                            {
+                                cmdBuscar.Parameters.AddWithValue("@TM02Codigo", tm02Codigo);
+                                cmdBuscar.Parameters.AddWithValue("@Archivo", data.RutaComprobantePago);
+                                object? result = await cmdBuscar.ExecuteScalarAsync();
+                                if (result != null && result != DBNull.Value)
+                                {
+                                    comprobanteId = Convert.ToInt32(result);
+                                }
+                            }
+                        }
+
+                        string insertPago = @"
+                        INSERT INTO [SIIR-ProdV1].[dbo].[TN06_Pagos]
+                        (TN06_TM02_Tipo, TN06_TM02_Codigo, TN06_Fecha, TN06_Valor, TN06_Comprobante)
+                        VALUES (@TipoSector, @TM02Codigo, @FechaPago, @Valor, @Comprobante)";
+
+                        using (SqlCommand cmdPago = new SqlCommand(insertPago, conn))
+                        {
+                            cmdPago.Parameters.AddWithValue("@TipoSector", data.TipoEntidad);
+                            cmdPago.Parameters.AddWithValue("@TM02Codigo", tm02Codigo);
+                            cmdPago.Parameters.AddWithValue("@FechaPago", data.FechaPago ?? DateTime.Now);
+                            cmdPago.Parameters.AddWithValue("@Valor", data.ValorPagado);
+                            cmdPago.Parameters.AddWithValue("@Comprobante", (object?)comprobanteId ?? DBNull.Value);
+                            await cmdPago.ExecuteNonQueryAsync();
+                        }
+                    }
+
                     // Obtener nombre del responsable asignado
                     string responsableQuery = @"
                     SELECT TOP 1 TM04_Nombre + ' ' + TM04_Apellidos
@@ -517,6 +557,10 @@ namespace InscripcionEntidades
                             
                             bool correoAreaEnviado = await EnviarCorreoAsync(emailAreaPayload, null, tm02Codigo, numeroTramiteStr);
                             _logger.LogWarning($"📨 Correo a {area.Key} enviado: {correoAreaEnviado}");
+                            if (!correoAreaEnviado)
+                            {
+                                _logger.LogError($"❌ ERROR: Falló envío de correo a área {area.Key}");
+                            }
                         }
                     }
 
@@ -533,6 +577,10 @@ namespace InscripcionEntidades
                         
                         bool correoUsuarioEnviado = await EnviarCorreoAsync(emailUsuarioPayload, localPdfPath, tm02Codigo, numeroTramiteStr);
                         _logger.LogWarning($"📧 Correo de confirmación enviado: {correoUsuarioEnviado}");
+                        if (!correoUsuarioEnviado)
+                        {
+                            _logger.LogError("❌ ERROR: Falló envío de correo de confirmación al usuario");
+                        }
                     }
 
                     var responseObj = new
@@ -715,7 +763,17 @@ namespace InscripcionEntidades
                 var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
                 var response = await httpClient.PostAsync("/api/send-email", content);
+                string respContent = await response.Content.ReadAsStringAsync();
                 bool exitoso = response.IsSuccessStatusCode;
+                
+                if (!exitoso)
+                {
+                    _logger.LogError($"❌ API CORREO ERROR: Status={response.StatusCode}, Body={respContent}");
+                }
+                else
+                {
+                    _logger.LogInformation("✅ Correo enviado correctamente mediante Azure Email Function.");
+                }
 
                 // Guardar log en TM80_LOG_CORREOS
                 if (!string.IsNullOrEmpty(connectionString) && tm02Codigo.HasValue)
