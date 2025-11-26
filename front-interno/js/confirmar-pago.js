@@ -55,6 +55,10 @@ async function confirmarPago() {
 
     detalle.estadoNombre = 'Pendiente de aprobación final';
     document.getElementById('selectEstado').textContent = 'Pendiente de aprobación final';
+    
+    // Deshabilitar botones de pago
+    document.getElementById('btnConfirmarPago').disabled = true;
+    document.getElementById('btnCancelarPago').disabled = true;
   } catch (error) {
     Swal.fire('Error', 'No se pudo confirmar el pago', 'error');
   }

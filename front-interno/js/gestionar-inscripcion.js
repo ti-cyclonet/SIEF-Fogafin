@@ -9,7 +9,7 @@ let comprobantesPago = [];
 async function loadEntidadesGestionables() {
   const userArea = localStorage.getItem('userArea');
   const isDOT = userArea === '52050';
-  const estadosGestionables = isDOT ? "13" : "1,2,3,4,5,6,7,8,9,10,11,12";
+  const estadosGestionables = isDOT ? "13" : "1,2,3,4,5,6,7,8,9,10,11,12,13,14";
   const url = `${API_BASE_URL}entidades-filtradas?estadoIds=${estadosGestionables}`;
   try {
     const response = await fetch(url);

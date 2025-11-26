@@ -59,7 +59,7 @@ namespace InscripcionEntidades.Services
             }
             else
             {
-                query += " AND he.TN05_TM01_EstadoActual BETWEEN 1 AND 14";
+                query += " AND he.TN05_TM01_EstadoActual BETWEEN 1 AND 16";
             }
 
             using var connection = new SqlConnection(_connectionString);

@@ -97,30 +97,53 @@ namespace InscripcionEntidades
                             SET TM02_TM01_CODIGO = 14
                             WHERE TM02_CODIGO = @entidadId AND TM02_TM01_CODIGO != 14";
 
+                        // Validar usuario
+                        string usuarioFinal;
+                        if (funcionario == "AdminSief")
+                        {
+                            usuarioFinal = "USUARIOWEB";
+                        }
+                        else
+                        {
+                            // Verificar si el usuario existe en TM03_Usuario
+                            string checkUserQuery = "SELECT COUNT(*) FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] WHERE TM03_Usuario = @usuario";
+                            using (var checkCmd = new SqlCommand(checkUserQuery, connection))
+                            {
+                                checkCmd.Parameters.AddWithValue("@usuario", funcionario);
+                                int userExists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
+                                if (userExists == 0)
+                                {
+                                    var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                                    await errorResponse.WriteStringAsync($"El usuario '{funcionario}' no existe en el sistema");
+                                    return errorResponse;
+                                }
+                            }
+                            usuarioFinal = funcionario;
+                        }
+
                         using (var command = new SqlCommand(updateQuery, connection))
                         {
                             command.Parameters.AddWithValue("@entidadId", entidadId);
-                            int rowsAffected = await command.ExecuteNonQueryAsync();
-                            
-                            if (rowsAffected > 0)
-                            {
-                                // Registrar en histórico
-                                string insertHistoricoQuery = @"
-                                    INSERT INTO [SIIR-ProdV1].[dbo].[TN05_Historico_Estado]
-                                    (TN05_TM02_Tipo, TN05_TM02_Codigo, TN05_TM01_EstadoAnterior, TN05_TM01_EstadoActual, TN05_Fecha, TN05_TN03_Usuario, TN05_Observaciones)
-                                    VALUES (1, @entidadId, @estadoAnterior, 14, GETDATE(), @funcionario, 'Confirmación de pago - Cambio a pendiente de aprobación final')";
+                            await command.ExecuteNonQueryAsync();
+                        }
 
-                                using (var command2 = new SqlCommand(insertHistoricoQuery, connection))
-                                {
-                                    command2.Parameters.AddWithValue("@entidadId", entidadId);
-                                    command2.Parameters.AddWithValue("@estadoAnterior", estadoAnterior);
-                                    command2.Parameters.AddWithValue("@funcionario", funcionario);
-                                    await command2.ExecuteNonQueryAsync();
-                                }
+                        // Siempre registrar en histórico
+                        string insertHistoricoQuery = @"
+                            INSERT INTO [SIIR-ProdV1].[dbo].[TN05_Historico_Estado]
+                            (TN05_TM02_Tipo, TN05_TM02_Codigo, TN05_TM01_EstadoAnterior, TN05_TM01_EstadoActual, TN05_Fecha, TN05_TN03_Usuario, TN05_Observaciones)
+                            VALUES (1, @entidadId, @estadoAnterior, 14, GETDATE(), @usuario, 'Confirmación de pago - Cambio a pendiente de aprobación final')";
 
-                                // Log de notificación
-                                string asunto = "Confirmación de Pago de Inscripción";
-                                string cuerpo = $@"Estimados miembros del Departamento de Sistema de Seguro de Depósitos:
+                        using (var command2 = new SqlCommand(insertHistoricoQuery, connection))
+                        {
+                            command2.Parameters.AddWithValue("@entidadId", entidadId);
+                            command2.Parameters.AddWithValue("@estadoAnterior", estadoAnterior);
+                            command2.Parameters.AddWithValue("@usuario", usuarioFinal);
+                            await command2.ExecuteNonQueryAsync();
+                        }
+
+                        // Log de notificación
+                        string asunto = "Confirmación de Pago de Inscripción";
+                        string cuerpo = $@"Estimados miembros del Departamento de Sistema de Seguro de Depósitos:
 
 Nos permitimos informarles que el Departamento de DOT ha realizado la validación del pago de inscripción de la entidad {nombreEntidad}, le agradecemos realizar la gestión pertinente dentro de los diferentes aplicativos.
 
@@ -130,13 +153,13 @@ Departamento de Sistema de Seguro de Depósitos
 Fondo de Garantías de Instituciones Financieras – Fogafín
 PBX: 601 4321370 extensiones 255 - 142";
 
-                                _logger.LogInformation("=== NOTIFICACIÓN DE CONFIRMACIÓN DE PAGO ===");
-                                _logger.LogInformation($"Asunto: {asunto}");
-                                _logger.LogInformation($"Destinatarios: {string.Join(", ", correosSSD)}");
-                                _logger.LogInformation($"Cuerpo:\n{cuerpo}");
-                                _logger.LogInformation("==============================");
-                            }
-                        }
+                        _logger.LogInformation("=== NOTIFICACIÓN DE CONFIRMACIÓN DE PAGO ===");
+                        _logger.LogInformation($"Asunto: {asunto}");
+                        _logger.LogInformation($"Destinatarios: {string.Join(", ", correosSSD)}");
+                        _logger.LogInformation($"Cuerpo:\n{cuerpo}");
+                        _logger.LogInformation("==============================");
+
+
                     }
 
                     var response = req.CreateResponse(HttpStatusCode.OK);

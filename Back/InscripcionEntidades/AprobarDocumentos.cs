@@ -120,33 +120,54 @@ PBX: 601 4321370 extensiones 255 - 142";
                             await command.ExecuteNonQueryAsync();
                         }
 
+                        // Validar usuario
+                        string usuarioFinal;
+                        if (funcionario == "AdminSief")
+                        {
+                            usuarioFinal = "USUARIOWEB";
+                        }
+                        else
+                        {
+                            // Verificar si el usuario existe en TM03_Usuario
+                            string checkUserQuery = "SELECT COUNT(*) FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] WHERE TM03_Usuario = @usuario";
+                            using (var checkCmd = new SqlCommand(checkUserQuery, connection))
+                            {
+                                checkCmd.Parameters.AddWithValue("@usuario", funcionario);
+                                int userExists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
+                                if (userExists == 0)
+                                {
+                                    var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                                    await errorResponse.WriteStringAsync($"El usuario '{funcionario}' no existe en el sistema");
+                                    return errorResponse;
+                                }
+                            }
+                            usuarioFinal = funcionario;
+                        }
+
                         // Cambiar estado a "En validación del pago" (código 13)
                         string updateQuery = @"
                             UPDATE [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA]
                             SET TM02_TM01_CODIGO = 13
-                            WHERE TM02_CODIGO = @entidadId AND TM02_TM01_CODIGO != 13";
+                            WHERE TM02_CODIGO = @entidadId";
 
                         using (var command = new SqlCommand(updateQuery, connection))
                         {
                             command.Parameters.AddWithValue("@entidadId", entidadId);
-                            int rowsAffected = await command.ExecuteNonQueryAsync();
-                            
-                            if (rowsAffected > 0)
-                            {
-                                // Registrar en histórico de estados solo si se actualizó
-                                string insertHistoricoQuery = @"
-                                    INSERT INTO [SIIR-ProdV1].[dbo].[TN05_Historico_Estado]
-                                    (TN05_TM02_Tipo, TN05_TM02_Codigo, TN05_TM01_EstadoAnterior, TN05_TM01_EstadoActual, TN05_Fecha, TN05_TN03_Usuario, TN05_Observaciones)
-                                    VALUES (1, @entidadId, @estadoAnterior, 13, GETDATE(), @funcionario, 'Aprobación de documentos - Cambio a validación de pago')";
+                            await command.ExecuteNonQueryAsync();
+                        }
 
-                                using (var command2 = new SqlCommand(insertHistoricoQuery, connection))
-                                {
-                                    command2.Parameters.AddWithValue("@entidadId", entidadId);
-                                    command2.Parameters.AddWithValue("@estadoAnterior", estadoAnterior);
-                                    command2.Parameters.AddWithValue("@funcionario", funcionario);
-                                    await command2.ExecuteNonQueryAsync();
-                                }
-                            }
+                        // Siempre registrar en histórico de estados
+                        string insertHistoricoQuery = @"
+                            INSERT INTO [SIIR-ProdV1].[dbo].[TN05_Historico_Estado]
+                            (TN05_TM02_Tipo, TN05_TM02_Codigo, TN05_TM01_EstadoAnterior, TN05_TM01_EstadoActual, TN05_Fecha, TN05_TN03_Usuario, TN05_Observaciones)
+                            VALUES (1, @entidadId, @estadoAnterior, 13, GETDATE(), @usuario, 'Aprobación de documentos - Cambio a validación de pago')";
+
+                        using (var command2 = new SqlCommand(insertHistoricoQuery, connection))
+                        {
+                            command2.Parameters.AddWithValue("@entidadId", entidadId);
+                            command2.Parameters.AddWithValue("@estadoAnterior", estadoAnterior);
+                            command2.Parameters.AddWithValue("@usuario", usuarioFinal);
+                            await command2.ExecuteNonQueryAsync();
                         }
 
                         // Registrar en log de correos
