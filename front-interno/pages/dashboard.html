@@ -167,8 +167,14 @@
                     // Usar la información del backend
                     departamento = userAreaName;
                 } else {
-                    // Fallback por si no hay información del backend
-                    departamento = 'SSD';
+                    // Fallback basado en el área del usuario
+                    switch(userArea) {
+                        case '52050': departamento = 'DOT'; break;
+                        case '52060': departamento = 'DIF'; break;
+                        case '52070': departamento = 'DGC'; break;
+                        case '59030': departamento = 'SSD'; break;
+                        default: departamento = 'SSD';
+                    }
                 }
                 
                 departamentoSpan.textContent = departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario;

@@ -73,7 +73,7 @@ namespace InscripcionEntidades
                         INNER JOIN [SIIR-ProdV1].[dbo].[TM02_Area] a ON r.TM04_TM03_Codigo = a.TM02_Codigo
                         WHERE r.TM04_Identificacion = @usuario 
                         AND r.TM04_Activo = 1
-                        AND r.TM04_TM03_Codigo IN (59030, 52060, 52070)";
+                        AND r.TM04_TM03_Codigo IN (59030, 52060, 52070, 52050)";
 
                     using (var command = new SqlCommand(query, connection))
                     {
@@ -132,7 +132,7 @@ namespace InscripcionEntidades
         private bool SimularDirectorioActivo(string usuario)
         {
             // Simulación: usuarios que existen en AD
-            var usuariosValidos = new[] { "adminSief", "AlfredoMamby" };
+            var usuariosValidos = new[] { "adminSief", "AlfredoMamby", "SPinzon" };
             return usuariosValidos.Contains(usuario, StringComparer.OrdinalIgnoreCase);
         }
     }

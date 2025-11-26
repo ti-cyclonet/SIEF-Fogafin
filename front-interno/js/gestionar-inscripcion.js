@@ -141,7 +141,8 @@ function mostrarDetalleEntidad(detalle) {
   document.getElementById('capitalSuscrito').textContent = detalle.capitalSuscrito ? formatearMoneda(detalle.capitalSuscrito) : 'Información xxxxx';
   const valorPagadoCalculado = detalle.capitalSuscrito ? detalle.capitalSuscrito * 0.000115 : 0;
   document.getElementById('valorPagado').textContent = valorPagadoCalculado > 0 ? formatearMonedaConDecimales(valorPagadoCalculado) : 'Información xxxxx';
-  document.getElementById('fechaPago').textContent = detalle.fechaPago || 'Información xxxxx';
+  const fechaPago = detalle.fechaPago ? new Date(detalle.fechaPago).toLocaleDateString('es-CO') : 'Información xxxxx';
+  document.getElementById('fechaPago').textContent = fechaPago;
   cargarComprobanteInicial(detalle);
   window.currentDetalle = detalle;
   configurarLinksArchivos(detalle.archivos || [], detalle.rutaComprobantePago);
@@ -461,7 +462,14 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (userAreaName) {
       departamento = userAreaName;
     } else {
-      departamento = 'SSD';
+      // Fallback basado en el área del usuario
+      switch(userArea) {
+        case '52050': departamento = 'DOT'; break;
+        case '52060': departamento = 'DIF'; break;
+        case '52070': departamento = 'DGC'; break;
+        case '59030': departamento = 'SSD'; break;
+        default: departamento = 'SSD';
+      }
     }
     departamentoSpan.textContent = departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario;
   } else {

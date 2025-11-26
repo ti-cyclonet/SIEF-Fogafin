@@ -233,7 +233,39 @@
 
           <div class="tab-pane fade" id="informacionPago" role="tabpanel">
             <div class="py-3">
-              <p class="h6 text-success">Información de la inscripción y pago</p>
+              <h6 class="text-success">Información de inscripción de la entidad</h6>
+              <table class="table table-borderless mt-3">
+                <tbody>
+                  <tr>
+                    <td class="fw-bold" style="width: 40%;">Fecha de resolución de constitución *</td>
+                    <td><span id="fechaConstitucion">Información xxxxx</span></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Capital suscrito *</td>
+                    <td><span id="capitalSuscrito">Información xxxxx</span></td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              <h6 class="text-success mt-4">Información del pago de la inscripción</h6>
+              <table class="table table-borderless mt-3">
+                <tbody>
+                  <tr>
+                    <td class="fw-bold" style="width: 40%;">Valor pagado por inscripción*</td>
+                    <td><span id="valorPagado">Información xxxxx</span></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Fecha de pago de la inscripción*</td>
+                    <td><span id="fechaPago">Información xxxxx</span></td>
+                  </tr>
+                  <tr>
+                    <td class="fw-bold">Soporte de pago*</td>
+                    <td><a href="#" id="linkSoportePago" class="text-primary">a link</a></td>
+                  </tr>
+                </tbody>
+              </table>
+              
+
             </div>
           </div>
 
@@ -698,6 +730,15 @@
         }
       }
 
+      // Función para formatear moneda
+      function formatearMoneda(valor) {
+        return "$ " + Number(valor).toLocaleString("es-CO", {minimumFractionDigits: 0, maximumFractionDigits: 0});
+      }
+
+      function formatearMonedaConDecimales(valor) {
+        return "$ " + Number(valor).toLocaleString("es-CO", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      }
+
       // Función para mostrar los detalles de la entidad
       function mostrarDetalleEntidad(detalle) {
         // Llenar campos de información básica
@@ -728,8 +769,19 @@
         document.getElementById('correoResponsable').textContent = detalle.correoResponsableRegistro || 'Información xxxxx';
         document.getElementById('telefonoResponsable').textContent = detalle.telefonoResponsableRegistro || 'Información xxxxx';
         
+        // Llenar información de inscripción y pago
+        const fechaConst = detalle.fechaConstitucion ? new Date(detalle.fechaConstitucion).toLocaleDateString('es-CO') : 'Información xxxxx';
+        document.getElementById('fechaConstitucion').textContent = fechaConst;
+        document.getElementById('capitalSuscrito').textContent = detalle.capitalSuscrito ? formatearMoneda(detalle.capitalSuscrito) : 'Información xxxxx';
+        
+        const valorPagadoCalculado = detalle.capitalSuscrito ? detalle.capitalSuscrito * 0.000115 : 0;
+        document.getElementById('valorPagado').textContent = valorPagadoCalculado > 0 ? formatearMonedaConDecimales(valorPagadoCalculado) : 'Información xxxxx';
+        
+        const fechaPago = detalle.fechaPago ? new Date(detalle.fechaPago).toLocaleDateString('es-CO') : 'Información xxxxx';
+        document.getElementById('fechaPago').textContent = fechaPago;
+        
         // Configurar links de archivos
-        configurarLinksArchivos(detalle.archivos || []);
+        configurarLinksArchivos(detalle.archivos || [], detalle.rutaComprobantePago);
         
         // Mostrar secciones
         document.getElementById('informacionEntidad').classList.remove('d-none');
@@ -751,26 +803,34 @@
       }
 
       // Función para configurar links de archivos
-      function configurarLinksArchivos(archivos) {
+      function configurarLinksArchivos(archivos, rutaComprobantePago = null) {
         const links = {
           'linkCertificado': 'CERTIFICADO_',
           'linkResolucion': 'RESOLUCION_',
           'linkTerceros': 'TERCEROS_',
-          'linkLogo': 'LOGO_'
+          'linkLogo': 'LOGO_',
+          'linkSoportePago': 'PAGO_'
         };
         
         Object.keys(links).forEach(linkId => {
           const linkElement = document.getElementById(linkId);
+          if (!linkElement) return;
+          
           const prefijo = links[linkId];
-          const archivo = archivos.find(a => a.includes(prefijo));
+          let archivo = archivos.find(a => a.includes(prefijo));
+          
+          // Para el soporte de pago, usar rutaComprobantePago si está disponible
+          if (linkId === 'linkSoportePago' && rutaComprobantePago) {
+            archivo = rutaComprobantePago;
+          }
           
           if (archivo) {
-            const isLocal = window.location.hostname === "localhost";
             const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(archivo)}`);
             linkElement.href = downloadUrl;
             linkElement.target = '_blank';
             linkElement.textContent = 'Ver archivo';
             linkElement.style.pointerEvents = 'auto';
+            linkElement.style.color = '';
           } else {
             linkElement.href = '#';
             linkElement.target = '';
