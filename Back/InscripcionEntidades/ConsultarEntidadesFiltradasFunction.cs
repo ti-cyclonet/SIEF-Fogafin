@@ -24,12 +24,19 @@ namespace InscripcionEntidades.Functions
             var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
             string sectorIdStr = query["sectorId"];
             string estadoIdStr = query["estadoId"];
+            string estadoIdsStr = query["estadoIds"];
 
             int? sectorId = null;
             if (int.TryParse(sectorIdStr, out int sId)) { sectorId = sId; }
 
             int? estadoId = null;
             if (int.TryParse(estadoIdStr, out int eId)) { estadoId = eId; }
+            
+            List<int> estadoIds = null;
+            if (!string.IsNullOrEmpty(estadoIdsStr))
+            {
+                estadoIds = estadoIdsStr.Split(',').Where(s => int.TryParse(s.Trim(), out _)).Select(s => int.Parse(s.Trim())).ToList();
+            }
 
             // --- 2. Obtener datos de la base de datos ---
             var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
@@ -38,7 +45,7 @@ namespace InscripcionEntidades.Functions
             List<EntidadFiltro> entidadesFiltradas;
             try
             {
-                entidadesFiltradas = await dbService.GetEntidadesFiltradasAsync(sectorId, estadoId);
+                entidadesFiltradas = await dbService.GetEntidadesFiltradasAsync(sectorId, estadoId, estadoIds);
             }
             catch (Exception ex)
             {

@@ -12,7 +12,7 @@ namespace InscripcionEntidades.Services
             _connectionString = connectionString;
         }
 
-        public async Task<List<EntidadFiltro>> GetEntidadesFiltradasAsync(int? sectorId = null, int? estadoId = null)
+        public async Task<List<EntidadFiltro>> GetEntidadesFiltradasAsync(int? sectorId = null, int? estadoId = null, List<int> estadoIds = null)
         {
             var entidades = new List<EntidadFiltro>();
             
@@ -41,7 +41,18 @@ namespace InscripcionEntidades.Services
                 parameters.Add(new SqlParameter("@SectorId", sectorId.Value));
             }
 
-            if (estadoId.HasValue)
+            if (estadoIds != null && estadoIds.Any())
+            {
+                var estadoParams = new List<string>();
+                for (int i = 0; i < estadoIds.Count; i++)
+                {
+                    var paramName = $"@EstadoId{i}";
+                    estadoParams.Add(paramName);
+                    parameters.Add(new SqlParameter(paramName, estadoIds[i]));
+                }
+                query += $" AND he.TN05_TM01_EstadoActual IN ({string.Join(",", estadoParams)})";
+            }
+            else if (estadoId.HasValue)
             {
                 query += " AND he.TN05_TM01_EstadoActual = @EstadoId";
                 parameters.Add(new SqlParameter("@EstadoId", estadoId.Value));
@@ -54,6 +65,7 @@ namespace InscripcionEntidades.Services
             using var connection = new SqlConnection(_connectionString);
             using var command = new SqlCommand(query, connection);
             
+            command.CommandTimeout = 30; // 30 segundos timeout
             command.Parameters.AddRange(parameters.ToArray());
             
             await connection.OpenAsync();
