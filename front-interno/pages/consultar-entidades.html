@@ -271,7 +271,25 @@
 
           <div class="tab-pane fade" id="historialGestion" role="tabpanel">
             <div class="py-3">
-              <p class="h6 text-success">Historial de gestión</p>
+              <h6 class="text-success">Historial de gestión</h6>
+              <div class="table-responsive mt-3">
+                <table class="table table-striped table-hover" id="tablaHistorial">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Estado anterior</th>
+                      <th>Estado actual</th>
+                      <th>Usuario</th>
+                      <th>Observaciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colspan="5" class="text-center text-muted">Seleccione una entidad para ver el historial</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -707,6 +725,9 @@
 
           const detalle = await response.json();
           
+          // Asegurar que el ID esté disponible
+          detalle.id = entidadId;
+          
           // Si tenemos NIT y número de trámite, consultar el estado usando el endpoint que funciona
           if (detalle.nit && detalle.numeroTramite) {
             try {
@@ -737,6 +758,49 @@
 
       function formatearMonedaConDecimales(valor) {
         return "$ " + Number(valor).toLocaleString("es-CO", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      }
+
+      // Función para cargar historial de gestión
+      async function cargarHistorialGestion(entidadId) {
+        const tabla = document.querySelector('#tablaHistorial tbody');
+        if (!tabla) return;
+        
+        tabla.innerHTML = '<tr><td colspan="5" class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando historial...</td></tr>';
+        
+        try {
+          const response = await fetch(getApiUrl(`ConsultarHistorialGestion/${entidadId}`));
+          if (!response.ok) throw new Error('Error al cargar historial');
+          
+          const historial = await response.json();
+          tabla.innerHTML = '';
+          
+          if (historial.length === 0) {
+            tabla.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay registros de historial</td></tr>';
+            return;
+          }
+          
+          historial.forEach(registro => {
+            const fila = document.createElement('tr');
+            const fecha = new Date(registro.TN05_Fecha).toLocaleDateString('es-CO', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+            
+            fila.innerHTML = `
+              <td>${fecha}</td>
+              <td>${registro.EstadoAnterior || '-'}</td>
+              <td><span class="badge bg-primary">${registro.EstadoActual}</span></td>
+              <td>${registro.TN05_TN03_Usuario || '-'}</td>
+              <td>${registro.TN05_Observaciones || '-'}</td>
+            `;
+            tabla.appendChild(fila);
+          });
+        } catch (error) {
+          tabla.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error al cargar el historial</td></tr>';
+        }
       }
 
       // Función para mostrar los detalles de la entidad
@@ -779,6 +843,11 @@
         
         const fechaPago = detalle.fechaPago ? new Date(detalle.fechaPago).toLocaleDateString('es-CO') : 'Información xxxxx';
         document.getElementById('fechaPago').textContent = fechaPago;
+        
+        // Cargar historial de gestión
+        if (detalle.id) {
+          cargarHistorialGestion(detalle.id);
+        }
         
         // Configurar links de archivos
         configurarLinksArchivos(detalle.archivos || [], detalle.rutaComprobantePago);
@@ -857,6 +926,12 @@
         selectEstado.value = '';
         selectEstado.placeholder = 'Seleccione una entidad...';
         selectEstado.style.color = '#6c757d';
+        
+        // Limpiar tabla de historial
+        const tablaHistorial = document.querySelector('#tablaHistorial tbody');
+        if (tablaHistorial) {
+          tablaHistorial.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Seleccione una entidad para ver el historial</td></tr>';
+        }
         
         // Ocultar secciones
         document.getElementById('informacionEntidad').classList.add('d-none');

@@ -84,11 +84,11 @@ async function cargarDetalleEntidad(entidadId, entidadData = {}) {
     const response = await fetch(`${API_BASE_URL}ConsultarDetalleEntidad/${entidadId}`);
     if (!response.ok) throw new Error('Error al obtener el detalle de la entidad');
     const detalle = await response.json();
-    const detalleCompleto = { ...detalle, ...entidadData };
+    const detalleCompleto = { ...detalle, ...entidadData, id: entidadId };
     mostrarDetalleEntidad(detalleCompleto);
   } catch (error) {
     console.error('Error al cargar detalle:', error);
-    mostrarDetalleEntidad(entidadData);
+    mostrarDetalleEntidad({ ...entidadData, id: entidadId });
   }
 }
 
@@ -122,6 +122,48 @@ function cargarComprobanteInicial(detalle) {
   });
 }
 
+async function cargarHistorialGestion(entidadId) {
+  const tabla = document.querySelector('#tablaHistorial tbody');
+  if (!tabla) return;
+  
+  tabla.innerHTML = '<tr><td colspan="5" class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando historial...</td></tr>';
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}ConsultarHistorialGestion/${entidadId}`);
+    if (!response.ok) throw new Error('Error al cargar historial');
+    
+    const historial = await response.json();
+    tabla.innerHTML = '';
+    
+    if (historial.length === 0) {
+      tabla.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay registros de historial</td></tr>';
+      return;
+    }
+    
+    historial.forEach(registro => {
+      const fila = document.createElement('tr');
+      const fecha = new Date(registro.TN05_Fecha).toLocaleDateString('es-CO', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      fila.innerHTML = `
+        <td>${fecha}</td>
+        <td>${registro.EstadoAnterior || '-'}</td>
+        <td><span class="badge bg-primary">${registro.EstadoActual}</span></td>
+        <td>${registro.TN05_TN03_Usuario || '-'}</td>
+        <td>${registro.TN05_Observaciones || '-'}</td>
+      `;
+      tabla.appendChild(fila);
+    });
+  } catch (error) {
+    tabla.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error al cargar el historial</td></tr>';
+  }
+}
+
 function mostrarDetalleEntidad(detalle) {
   document.getElementById('tipoEntidad').textContent = detalle.tipoEntidad || '';
   document.getElementById('nitEntidad').textContent = detalle.nit || '';
@@ -144,6 +186,9 @@ function mostrarDetalleEntidad(detalle) {
   const fechaPago = detalle.fechaPago ? new Date(detalle.fechaPago).toLocaleDateString('es-CO') : 'Información xxxxx';
   document.getElementById('fechaPago').textContent = fechaPago;
   cargarComprobanteInicial(detalle);
+  if (detalle.id) {
+    cargarHistorialGestion(detalle.id);
+  }
   window.currentDetalle = detalle;
   configurarLinksArchivos(detalle.archivos || [], detalle.rutaComprobantePago);
   actualizarBotonesGestion(detalle.estadoNombre);
@@ -397,6 +442,8 @@ function limpiarDetalles() {
   document.getElementById('telefonoResponsable').textContent = 'Información xxxxx';
   const tablaPagos = document.querySelector('#tablaPagos tbody');
   if (tablaPagos) tablaPagos.innerHTML = '';
+  const tablaHistorial = document.querySelector('#tablaHistorial tbody');
+  if (tablaHistorial) tablaHistorial.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Seleccione una entidad para ver el historial</td></tr>';
   comprobantesPago = [];
   document.getElementById('btnAprobarDocumentos').disabled = true;
 
@@ -414,35 +461,58 @@ function controlarVisibilidadPago() {
   const isAdmin = userName && userName.toLowerCase() === 'adminsief';
   const isJefeSSD = userArea === '59030' && userRole === 'Jefe';
   const isDOT = userArea === '52050';
+  const isDIF = userArea === '52060';
+  const isSSD = userArea === '59030';
+  
   const elementosPago = [
     document.getElementById('btnConfirmarPago'),
     document.getElementById('btnCancelarPago'),
     document.getElementById('btnAdjuntarComprobante')
   ];
   const seccionValidacion = document.querySelector('#informacionPago h6.text-success:nth-of-type(3)');
+  const leyendaValidacion = document.querySelector('#informacionPago p.text-muted');
   const tablaYBotones = document.querySelector('#informacionPago .row');
   
-  const mostrar = isDOT || isAdmin || isJefeSSD;
+  const mostrar = isDOT || isDIF || isAdmin;
   elementosPago.forEach(el => {
     if (el) el.style.display = mostrar ? '' : 'none';
   });
   if (seccionValidacion) seccionValidacion.style.display = mostrar ? '' : 'none';
+  if (leyendaValidacion) leyendaValidacion.style.display = mostrar ? '' : 'none';
   if (tablaYBotones) tablaYBotones.style.display = mostrar ? '' : 'none';
 }
 
 function controlarEditabilidadInformacionGeneral() {
   const userArea = localStorage.getItem('userArea');
+  const userName = localStorage.getItem('currentUser');
+  const isAdmin = userName && userName.toLowerCase() === 'adminsief';
   const isDOT = userArea === '52050';
+  const isDIF = userArea === '52060';
+  const isSSD = userArea === '59030';
+  
+  // Para DOT: ocultar botones de aprobación
   if (isDOT) {
     const btnAprobarDocumentos = document.getElementById('btnAprobarDocumentos');
     const btnRechazarInscripcion = document.getElementById('btnRechazarInscripcion');
-    const btnModificarCapital = document.getElementById('btnModificarCapital');
-    const documentosAdicionalesWrapper = document.getElementById('documentosAdicionalesWrapper');
-    
     if (btnAprobarDocumentos) btnAprobarDocumentos.style.display = 'none';
     if (btnRechazarInscripcion) btnRechazarInscripcion.style.display = 'none';
+  }
+  
+  // Para SSD: ocultar documentos adicionales y modificar capital
+  if (isSSD && !isAdmin) {
+    const btnModificarCapital = document.getElementById('btnModificarCapital');
+    const documentosAdicionalesWrapper = document.getElementById('documentosAdicionalesWrapper');
+    const documentosAdicionalesPagoWrapper = document.getElementById('documentosAdicionalesPagoWrapper');
+    
     if (btnModificarCapital) btnModificarCapital.style.display = 'none';
-    if (documentosAdicionalesWrapper) documentosAdicionalesWrapper.style.pointerEvents = 'none';
+    if (documentosAdicionalesWrapper) documentosAdicionalesWrapper.style.display = 'none';
+    if (documentosAdicionalesPagoWrapper) documentosAdicionalesPagoWrapper.style.display = 'none';
+    
+    // Ocultar también las filas de la tabla que contienen estos elementos
+    const filaDocumentosAdicionales = documentosAdicionalesWrapper?.closest('tr');
+    const filaDocumentosAdicionalesPago = documentosAdicionalesPagoWrapper?.closest('tr');
+    if (filaDocumentosAdicionales) filaDocumentosAdicionales.style.display = 'none';
+    if (filaDocumentosAdicionalesPago) filaDocumentosAdicionalesPago.style.display = 'none';
   }
 }
 
