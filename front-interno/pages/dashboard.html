@@ -148,6 +148,7 @@
             const userName = localStorage.getItem('currentUser');
             const userArea = localStorage.getItem('userArea');
             const userRole = localStorage.getItem('userRole');
+            const userPerfil = localStorage.getItem('userPerfil');
             const funcionarioSpan = document.getElementById('nombreFuncionario');
             const departamentoSpan = document.getElementById('departamentoFuncionario');
             
@@ -156,16 +157,20 @@
                 const displayUser = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
                 funcionarioSpan.textContent = displayUser;
                 
-                // Obtener información del área desde localStorage (viene del backend)
+                // Obtener información del área y perfil desde localStorage (viene del backend)
                 const userAreaName = localStorage.getItem('userAreaName');
                 let tipoUsuario = 'Funcionario';
                 let departamento = '';
                 
                 if (userName.toLowerCase() === 'adminsief') {
-                    tipoUsuario = 'Administrador';
+                    tipoUsuario = 'Administrador SIEF';
+                } else if (userPerfil) {
+                    // Usar el perfil real del usuario
+                    tipoUsuario = userPerfil;
                 } else if (userAreaName) {
-                    // Usar la información del backend
+                    // Fallback: usar la información del backend
                     departamento = userAreaName;
+                    tipoUsuario = 'Funcionario';
                 } else {
                     // Fallback basado en el área del usuario
                     switch(userArea) {
@@ -175,9 +180,10 @@
                         case '59030': departamento = 'SSD'; break;
                         default: departamento = 'SSD';
                     }
+                    tipoUsuario = 'Funcionario';
                 }
                 
-                departamentoSpan.textContent = departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario;
+                departamentoSpan.textContent = userPerfil ? tipoUsuario : (departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario);
                 
                 // Controlar acceso a opciones del menú
                 const isAdmin = userName.toLowerCase() === 'adminsief';
@@ -185,17 +191,21 @@
                 const isDOT = userArea === '52050';
                 const isDIF = userArea === '52060';
                 const isDGC = userArea === '52070';
-                const isJefeSSD = isSSD && userRole === 'Jefe';
-                const isConsulta = userRole === 'Consulta';
+                const isJefeSSD = isSSD && (userPerfil === 'Jefe SSD' || userRole === 'Jefe');
+                const isConsulta = userPerfil === 'Consulta';
                 
                 const tileGestionarInscripcion = document.getElementById('tileGestionarInscripcion');
                 const tileConsultarEntidades = document.getElementById('tileConsultarEntidades');
                 const tileGestionUsuarios = document.getElementById('tileGestionUsuarios');
                 
-                // Para usuarios de solo consulta: solo mostrar "Consultar Entidades"
+                // Para usuarios de solo consulta: solo mostrar "Consultar Entidades" centrado
                 if (isConsulta && !isAdmin) {
                     if (tileGestionarInscripcion) tileGestionarInscripcion.classList.add('tile-hidden');
                     if (tileGestionUsuarios) tileGestionUsuarios.classList.add('tile-hidden');
+                    // Centrar la única opción disponible
+                    const menuContainer = document.getElementById('menuContainer');
+                    menuContainer.classList.remove('row-cols-md-2');
+                    menuContainer.classList.add('justify-content-center');
                 }
                 // Para otros usuarios que no son admin ni de áreas autorizadas
                 else if (!isAdmin && !isSSD && !isDOT && !isDIF && !isDGC) {
@@ -218,6 +228,7 @@
                 localStorage.removeItem('userArea');
                 localStorage.removeItem('userAreaName');
                 localStorage.removeItem('userRole');
+                localStorage.removeItem('userPerfil');
                 Swal.fire({
                     title: "Cerrando Sesión...",
                     icon: 'info',

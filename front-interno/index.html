@@ -176,6 +176,10 @@
                 localStorage.setItem("userAreaName", isAuthorized.nombreArea);
                 console.log(`Usuario ${usuario} pertenece al área: ${isAuthorized.nombreArea} (Código: ${isAuthorized.codigoArea})`);
               }
+              if (isAuthorized.perfil) {
+                localStorage.setItem("userPerfil", isAuthorized.perfil);
+                console.log(`Perfil del usuario: ${isAuthorized.perfil}`);
+              }
 
               Swal.fire({
                 title: "Acceso concedido",

@@ -68,12 +68,14 @@ namespace InscripcionEntidades
                     await connection.OpenAsync();
 
                     string query = @"
-                        SELECT r.TM04_TM03_Codigo, a.TM02_Nombre 
+                        SELECT r.TM04_TM03_Codigo, a.TM02_Nombre, c.TM15_TM14_Perfil
                         FROM [SistemasComunes].[dbo].[TM04_Responsables] r
                         INNER JOIN [SIIR-ProdV1].[dbo].[TM02_Area] a ON r.TM04_TM03_Codigo = a.TM02_Codigo
+                        INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
                         WHERE r.TM04_Identificacion = @usuario 
                         AND r.TM04_Activo = 1
-                        AND r.TM04_TM03_Codigo IN (59030, 52060, 52070, 52050)";
+                        AND c.TM15_TM12_TM01_Codigo = 17
+                        AND c.TM15_TM12_Ambiente = 'PROD'";
 
                     using (var command = new SqlCommand(query, connection))
                     {
@@ -87,8 +89,9 @@ namespace InscripcionEntidades
                             {
                                 var codigoArea = reader["TM04_TM03_Codigo"].ToString();
                                 var nombreArea = reader["TM02_Nombre"].ToString();
+                                var perfil = reader["TM15_TM14_Perfil"].ToString();
                                 
-                                _logger.LogInformation($"Usuario '{usuario}' válido y autorizado, área: {nombreArea} ({codigoArea})");
+                                _logger.LogInformation($"Usuario '{usuario}' válido y autorizado, área: {nombreArea} ({codigoArea}), perfil: {perfil}");
 
                                 var response = req.CreateResponse(HttpStatusCode.OK);
                                 response.Headers.Add("Content-Type", "application/json");
@@ -96,7 +99,8 @@ namespace InscripcionEntidades
                                 var resultado = new { 
                                     esValido = true, 
                                     codigoArea = codigoArea,
-                                    nombreArea = nombreArea
+                                    nombreArea = nombreArea,
+                                    perfil = perfil
                                 };
                                 await response.WriteStringAsync(JsonSerializer.Serialize(resultado));
 
