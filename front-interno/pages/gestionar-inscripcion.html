@@ -238,17 +238,38 @@
                     <td class="fw-bold">Logo:</td>
                     <td><a href="#" id="linkLogo" class="text-primary">a link</a></td>
                   </tr>
-                  <tr id="filaArchivosAdicionales">
-                    <td class="fw-bold">Documentos adicionales:</td>
-                    <td>
-                      <div id="archivosAdjuntados"></div>
-                      <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="btnAdjuntarArchivo">
-                        <i class="fas fa-plus me-1"></i>Adjuntar archivo
-                      </button>
-                      <input type="file" id="documentosAdicionales" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display: none;" />
-                      <div class="form-text">Máximo 5 archivos. Formatos: PDF, JPG, PNG, DOC, DOCX</div>
-                    </td>
-                  </tr>
+                </tbody>
+              </table>
+              
+              <div id="filaArchivosAdicionales">
+                <h6 class="text-success mt-4">Documentos adicionales:</h6>
+                <table class="table table-borderless mt-3" id="tablaDocumentosAdicionales">
+                  <tbody>
+                  </tbody>
+                </table>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAdjuntarArchivo">
+                  <i class="fas fa-plus me-1"></i>Adjuntar archivo
+                </button>
+                <div id="uploadSection" class="d-none mt-3">
+                  <div class="file-wrapper" id="documentosAdicionalesWrapper">
+                    <span class="text-muted flex-grow-1" id="documentosAdicionalesText">Ningún archivo seleccionado</span>
+                    <span class="badge bg-light text-dark">Seleccionar archivo</span>
+                    <input type="file" id="documentosAdicionales" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                  </div>
+                  <div class="d-flex gap-2 mt-2">
+                    <button type="button" class="btn btn-sm btn-success" id="btnSubirArchivo">
+                      <i class="fas fa-upload me-1"></i>Subir
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" id="btnCancelarSubida">
+                      <i class="fas fa-times me-1"></i>Cancelar
+                    </button>
+                  </div>
+                </div>
+                <div class="form-text">Máximo 5 archivos. Formatos: PDF, JPG, PNG, DOC, DOCX</div>
+              </div>
+              
+              <table class="table table-borderless mt-3">
+                <tbody>
                 </tbody>
               </table>
               

@@ -263,9 +263,27 @@ function configurarLinksArchivos(archivos, rutaComprobantePago = null) {
       linkElement.target = '';
       linkElement.textContent = 'No disponible';
       linkElement.style.pointerEvents = 'none';
-      linkElement.style.color = '#6c757d';
+      linkElement.style.color = '#000';
+      linkElement.style.textDecoration = 'none';
     }
   });
+  
+  // Mostrar documentos adicionales
+  const tablaDocumentos = document.querySelector('#tablaDocumentosAdicionales tbody');
+  const documentosAdicionales = archivos ? archivos.filter(a => a.includes('ADICIONAL_SOLICITUD_')) : [];
+  
+  if (tablaDocumentos) {
+    tablaDocumentos.innerHTML = '';
+    documentosAdicionales.forEach((archivo, index) => {
+      const downloadUrl = `${API_BASE_URL}DescargarArchivo?url=${encodeURIComponent(archivo)}`;
+      const newRow = document.createElement('tr');
+      newRow.innerHTML = `
+        <td class="fw-bold" style="width: 40%;">Documento [${index + 1}]:</td>
+        <td><a href="${downloadUrl}" target="_blank" class="text-primary">Ver archivo</a></td>
+      `;
+      tablaDocumentos.appendChild(newRow);
+    });
+  }
 }
 
 function actualizarBotonesGestion(estadoNombre) {
@@ -323,12 +341,15 @@ function controlarEditabilidadInformacionGeneral() {
   }
   
   if (isSSD && !isAdmin) {
+    const userPerfil = localStorage.getItem('userPerfil');
+    const isJefeSSD = userPerfil === 'Jefe SSD';
+    
     const btnModificarCapital = document.getElementById('btnModificarCapital');
     const filaArchivosAdicionales = document.getElementById('filaArchivosAdicionales');
     const documentosAdicionalesPagoWrapper = document.getElementById('documentosAdicionalesPagoWrapper');
     
     if (btnModificarCapital) btnModificarCapital.style.display = 'none';
-    if (filaArchivosAdicionales) filaArchivosAdicionales.style.display = 'none';
+    if (!isJefeSSD && filaArchivosAdicionales) filaArchivosAdicionales.style.display = 'none';
     if (documentosAdicionalesPagoWrapper) {
       documentosAdicionalesPagoWrapper.style.display = 'none';
       const filaDocumentosAdicionalesPago = documentosAdicionalesPagoWrapper.closest('tr');
@@ -352,22 +373,27 @@ function initializeApp() {
     let tipoUsuario = 'Funcionario';
     let departamento = '';
     
+    const userPerfil = localStorage.getItem('userPerfil');
+    
     if (userName.toLowerCase() === 'adminsief') {
-      tipoUsuario = 'Administrador';
+      tipoUsuario = 'Administrador SIEF';
+    } else if (userPerfil) {
+      tipoUsuario = userPerfil;
     } else if (userAreaName) {
       departamento = userAreaName;
     } else {
+      const userRole = localStorage.getItem('userRole');
       switch(userArea) {
         case '52050': departamento = 'DOT'; break;
         case '52060': departamento = 'DIF'; break;
         case '52070': departamento = 'DGC'; break;
-        case '59030': departamento = 'SSD'; break;
-        default: departamento = 'SSD';
+        case '59030': departamento = userRole === 'Jefe' ? 'Jefe SSD' : 'SSD'; break;
+        default: departamento = userRole === 'Jefe' ? 'Jefe SSD' : 'SSD';
       }
     }
     
     if (departamentoSpan) {
-      departamentoSpan.textContent = departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario;
+      departamentoSpan.textContent = userPerfil ? tipoUsuario : (departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario);
     }
   } else {
     window.location.href = '../index.html';
@@ -386,6 +412,59 @@ function setupEventListeners() {
       localStorage.removeItem('userArea');
       localStorage.removeItem('userAreaName');
       window.location.href = '../index.html';
+    });
+  }
+  
+  const btnAdjuntarArchivo = document.getElementById('btnAdjuntarArchivo');
+  const uploadSection = document.getElementById('uploadSection');
+  const btnSubirArchivo = document.getElementById('btnSubirArchivo');
+  const btnCancelarSubida = document.getElementById('btnCancelarSubida');
+  const documentosAdicionales = document.getElementById('documentosAdicionales');
+  
+  if (btnAdjuntarArchivo && uploadSection) {
+    btnAdjuntarArchivo.addEventListener('click', () => {
+      uploadSection.classList.remove('d-none');
+      btnAdjuntarArchivo.classList.add('d-none');
+    });
+  }
+  
+  if (btnCancelarSubida && uploadSection && btnAdjuntarArchivo && documentosAdicionales) {
+    btnCancelarSubida.addEventListener('click', () => {
+      uploadSection.classList.add('d-none');
+      btnAdjuntarArchivo.classList.remove('d-none');
+      documentosAdicionales.value = '';
+      const textSpan = document.getElementById('documentosAdicionalesText');
+      if (textSpan) textSpan.textContent = 'Ningún archivo seleccionado';
+    });
+  }
+  
+  const documentosAdicionalesWrapper = document.getElementById('documentosAdicionalesWrapper');
+  const documentosAdicionalesText = document.getElementById('documentosAdicionalesText');
+  
+  if (documentosAdicionalesWrapper && documentosAdicionales && documentosAdicionalesText) {
+    documentosAdicionalesWrapper.addEventListener('click', () => {
+      documentosAdicionales.click();
+    });
+    
+    documentosAdicionales.addEventListener('change', () => {
+      if (documentosAdicionales.files && documentosAdicionales.files.length > 0) {
+        documentosAdicionalesText.textContent = documentosAdicionales.files[0].name;
+        documentosAdicionalesText.className = 'text-dark flex-grow-1';
+      } else {
+        documentosAdicionalesText.textContent = 'Ningún archivo seleccionado';
+        documentosAdicionalesText.className = 'text-muted flex-grow-1';
+      }
+    });
+  }
+  
+  if (btnSubirArchivo && documentosAdicionales) {
+    btnSubirArchivo.addEventListener('click', async () => {
+      const archivo = documentosAdicionales.files[0];
+      if (!archivo) {
+        Swal.fire('Error', 'Seleccione un archivo', 'error');
+        return;
+      }
+      await subirArchivoAdicional(archivo);
     });
   }
   
@@ -444,5 +523,70 @@ function setupEventListeners() {
   botones.forEach(({ id, handler }) => {
     const btn = document.getElementById(id);
     if (btn) btn.addEventListener('click', handler);
+  });
+}
+
+async function subirArchivoAdicional(archivo) {
+  try {
+    Swal.fire({title: 'Subiendo archivo...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    
+    const entidadId = obtenerEntidadSeleccionadaId();
+    if (!entidadId) {
+      Swal.fire('Error', 'No hay entidad seleccionada', 'error');
+      return;
+    }
+    
+    const fileBase64 = await convertirArchivoABase64(archivo);
+    const response = await fetch(`${API_BASE_URL}SubirDocumentoAdicional?entidadId=${entidadId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        archivoBase64: fileBase64,
+        nombreArchivo: archivo.name
+      })
+    });
+    
+    if (!response.ok) throw new Error('Error al subir archivo');
+    
+    const resultado = await response.json();
+    agregarArchivoVisualmente(archivo.name, resultado.url);
+    
+    const uploadSection = document.getElementById('uploadSection');
+    const btnAdjuntarArchivo = document.getElementById('btnAdjuntarArchivo');
+    const documentosAdicionales = document.getElementById('documentosAdicionales');
+    
+    if (uploadSection) uploadSection.classList.add('d-none');
+    if (btnAdjuntarArchivo) btnAdjuntarArchivo.classList.remove('d-none');
+    if (documentosAdicionales) documentosAdicionales.value = '';
+    
+    Swal.fire({icon: 'success', title: 'Archivo subido', text: 'El archivo se ha agregado correctamente', timer: 2000, showConfirmButton: false});
+  } catch (error) {
+    Swal.fire('Error', 'No se pudo subir el archivo', 'error');
+  }
+}
+
+function agregarArchivoVisualmente(nombreArchivo, url) {
+  const tablaDocumentos = document.querySelector('#tablaDocumentosAdicionales tbody');
+  if (!tablaDocumentos) return;
+  
+  const existingDocs = tablaDocumentos.children.length;
+  
+  const newRow = document.createElement('tr');
+  newRow.innerHTML = `
+    <td class="fw-bold" style="width: 40%;">Documento [${existingDocs + 1}]:</td>
+    <td><a href="${url}" target="_blank" class="text-primary">Ver archivo</a></td>
+  `;
+  tablaDocumentos.appendChild(newRow);
+}
+
+function convertirArchivoABase64(archivo) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(archivo);
   });
 }

@@ -278,7 +278,29 @@
                 funcionarioSpan.textContent = displayUser;
                 
                 const userAreaName = localStorage.getItem('userAreaName');
-                departamentoSpan.textContent = userAreaName || 'SSD';
+                const userArea = localStorage.getItem('userArea');
+                const userRole = localStorage.getItem('userRole');
+                const userPerfil = localStorage.getItem('userPerfil');
+                let tipoUsuario = 'Funcionario';
+                let departamento = '';
+                
+                if (userName.toLowerCase() === 'adminsief') {
+                    tipoUsuario = 'Administrador SIEF';
+                } else if (userPerfil) {
+                    tipoUsuario = userPerfil;
+                } else if (userAreaName) {
+                    departamento = userAreaName;
+                } else {
+                    switch(userArea) {
+                        case '52050': departamento = 'DOT'; break;
+                        case '52060': departamento = 'DIF'; break;
+                        case '52070': departamento = 'DGC'; break;
+                        case '59030': departamento = userRole === 'Jefe' ? 'Jefe SSD' : 'SSD'; break;
+                        default: departamento = userRole === 'Jefe' ? 'Jefe SSD' : 'SSD';
+                    }
+                }
+                
+                departamentoSpan.textContent = userPerfil ? tipoUsuario : (departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario);
             } else {
                 window.location.href = '../index.html';
             }

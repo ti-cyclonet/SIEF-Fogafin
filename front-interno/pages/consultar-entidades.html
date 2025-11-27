@@ -545,15 +545,27 @@
           let tipoUsuario = 'Funcionario';
           let departamento = '';
           
+          const userPerfil = localStorage.getItem('userPerfil');
+          
           if (userName.toLowerCase() === 'adminsief') {
-            tipoUsuario = 'Administrador';
+            tipoUsuario = 'Administrador SIEF';
+          } else if (userPerfil) {
+            tipoUsuario = userPerfil;
           } else if (userAreaName) {
             departamento = userAreaName;
           } else {
-            departamento = 'SSD';
+            const userArea = localStorage.getItem('userArea');
+            const userRole = localStorage.getItem('userRole');
+            switch(userArea) {
+              case '52050': departamento = 'DOT'; break;
+              case '52060': departamento = 'DIF'; break;
+              case '52070': departamento = 'DGC'; break;
+              case '59030': departamento = userRole === 'Jefe' ? 'Jefe SSD' : 'SSD'; break;
+              default: departamento = userRole === 'Jefe' ? 'Jefe SSD' : 'SSD';
+            }
           }
           
-          departamentoSpan.textContent = departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario;
+          departamentoSpan.textContent = userPerfil ? tipoUsuario : (departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario);
         } else {
           window.location.href = '../index.html';
           return;
