@@ -637,3 +637,38 @@ TRUNCATE TABLE [SIIR-ProdV1].[dbo].[TM08_ConsecutivoEnt];
 -- a un valor específico (normalmente 1).
 -- El segundo parámetro es el valor *inicial* para el próximo ID.
 DBCC CHECKIDENT ('[SIIR-ProdV1].[dbo].[TM08_ConsecutivoEnt]', RESEED, 1);
+
+
+BEGIN TRANSACTION;
+
+-- ***************************************************************
+-- 1. Modificar el nombre del perfil 'Jefe DOT' a 'DOT'
+--    También actualizamos la descripción para que sea la unificada y más completa.
+-- ***************************************************************
+
+UPDATE [SistemasComunes].[dbo].[TM14_PerfilesAplicacion]
+SET
+    [TM14_Perfil] = 'DOT',
+    [TM14_Descripcion] = 'Perfil encargado de la aprobación de solicitudes, consulta de trámites, edición de información y cargue de documentos'
+WHERE
+    [TM14_TM01_Codigo] = '17'
+    AND [TM14_Perfil] = 'Jefe DOT';
+
+-- ***************************************************************
+-- 2. Eliminar el perfil 'Profesional DOT'
+-- ***************************************************************
+
+DELETE FROM [SistemasComunes].[dbo].[TM14_PerfilesAplicacion]
+WHERE
+    [TM14_TM01_Codigo] = '17'
+    AND [TM14_Perfil] = 'Profesional DOT';
+
+-- ***************************************************************
+-- 3. Confirmar la Transacción
+-- ***************************************************************
+
+-- Si estás seguro de que los pasos anteriores son correctos, descomenta la siguiente línea:
+-- COMMIT TRANSACTION;
+
+-- Si deseas revertir los cambios por algún error, usa la siguiente línea:
+-- ROLLBACK TRANSACTION;

@@ -79,7 +79,7 @@
 
           <div class="col-md-4"><label class="col-form-label">Nit*</label></div>
           <div class="col-md-8">
-            <input id="nit" type="number" class="form-control" required />
+            <input id="nit" type="text" class="form-control" required maxlength="9" />
           </div>
 
           <div class="col-md-4">
@@ -477,6 +477,39 @@
         };
       }
       
+      function validateNit(nit) {
+        if (!nit) return { valid: true };
+        const cleanNit = nit.replace(/[^0-9]/g, '');
+        const isValid = cleanNit.length <= 9 && cleanNit === nit;
+        return {
+          valid: isValid,
+          message: isValid ? '' : 'Máximo 9 dígitos, solo números'
+        };
+      }
+      
+      function showNitError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        const container = field.closest('.col-md-8');
+        const existingError = container.querySelector('.nit-error');
+        if (existingError) existingError.remove();
+        field.style.setProperty('border', '1px solid #dc3545', 'important');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'nit-error';
+        errorDiv.style.color = '#dc3545';
+        errorDiv.style.fontSize = '0.875rem';
+        errorDiv.style.marginTop = '0.5rem';
+        errorDiv.textContent = message;
+        container.appendChild(errorDiv);
+      }
+      
+      function clearNitError(fieldId) {
+        const field = document.getElementById(fieldId);
+        const container = field.closest('.col-md-8');
+        const existingError = container.querySelector('.nit-error');
+        if (existingError) existingError.remove();
+        field.style.removeProperty('border');
+      }
+      
       function showPhoneError(fieldId, message) {
         const field = document.getElementById(fieldId);
         const container = field.closest('.col-md-8');
@@ -570,6 +603,18 @@
       aplicarFormatoCampo(capitalSuscritoInput, true);
       aplicarFormatoCampo(valorPagadoInput, true);
       
+      // Limpiar errores de fórmula al cambiar los valores
+      [capitalSuscritoInput, valorPagadoInput].forEach(input => {
+        input.addEventListener('input', () => {
+          const container = valorPagadoInput.closest('.col-md-8');
+          const existingError = container.querySelector('.formula-error');
+          if (existingError) {
+            existingError.remove();
+            valorPagadoInput.style.removeProperty('border');
+          }
+        });
+      });
+      
       // Configurar file inputs con wrapper
       const fileInputs = ['logoEntidad', 'resolucion', 'formatoTerceros', 'soportePago', 'certificadoExistencia'];
       fileInputs.forEach(id => {
@@ -632,6 +677,26 @@
           });
         }
       });
+      
+      // Configurar validación del NIT
+      const nitField = document.getElementById('nit');
+      if (nitField) {
+        nitField.addEventListener('input', (e) => {
+          // Solo permitir números
+          e.target.value = e.target.value.replace(/[^0-9]/g, '');
+          // Limitar a 9 dígitos
+          if (e.target.value.length > 9) {
+            e.target.value = e.target.value.slice(0, 9);
+          }
+        });
+        nitField.addEventListener('change', () => {
+          clearNitError('nit');
+          const validation = validateNit(nitField.value.trim());
+          if (!validation.valid) {
+            showNitError('nit', validation.message);
+          }
+        });
+      }
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -684,6 +749,17 @@
           }
         });
         
+        // Validar NIT en submit
+        const nitField = document.getElementById('nit');
+        if (nitField) {
+          clearNitError('nit');
+          const validation = validateNit(nitField.value.trim());
+          if (!validation.valid) {
+            hasEmailErrors = true;
+            showNitError('nit', validation.message);
+          }
+        }
+        
         if (hasFileErrors || hasEmailErrors || !form.checkValidity()) {
           form.classList.add("was-validated");
           Swal.fire("", "Por favor complete todos los campos obligatorios y corrija los errores.", "error");
@@ -696,6 +772,20 @@
         const diferencia = Math.abs(valorPagado - esperado);
 
         if (diferencia > 0.00001) {
+          // Mostrar error visual en el campo Valor pagado
+          valorPagadoInput.style.setProperty('border', '1px solid #dc3545', 'important');
+          const container = valorPagadoInput.closest('.col-md-8');
+          const existingError = container.querySelector('.formula-error');
+          if (existingError) existingError.remove();
+          const errorDiv = document.createElement('div');
+          errorDiv.className = 'formula-error';
+          errorDiv.style.color = '#dc3545';
+          errorDiv.style.fontSize = '0.875rem';
+          errorDiv.style.marginTop = '0.5rem';
+          errorDiv.textContent = `Debe ser 0.115 por mil del capital suscrito (${formatearMonedaConDecimales(esperado)})`;
+          container.appendChild(errorDiv);
+          
+          valorPagadoInput.focus();
           Swal.fire("", "Recuerde que el valor pagado por inscripción debe ser 0.115 por mil del capital suscrito. Por favor, valide la información ingresada.", "error");
           return;
         }

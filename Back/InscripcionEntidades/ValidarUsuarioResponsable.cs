@@ -31,18 +31,21 @@ namespace InscripcionEntidades
 
                 _logger.LogInformation($"Validando usuario: '{usuario}'");
 
-                // 1. Simulación de validación en Directorio Activo
-                bool existeEnDirectorioActivo = SimularDirectorioActivo(usuario);
-                _logger.LogInformation($"Usuario '{usuario}' en Directorio Activo: {existeEnDirectorioActivo}");
-                
-                if (!existeEnDirectorioActivo)
+                // 1. Simulación de validación en Directorio Activo (solo para AdminSief)
+                if (usuario.Equals("adminSief", StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogInformation($"Usuario '{usuario}' no encontrado en Directorio Activo");
-                    var response = req.CreateResponse(HttpStatusCode.OK);
-                    response.Headers.Add("Content-Type", "application/json");
-                    var resultado = new { esValido = false, motivo = "Usuario no encontrado en Directorio Activo" };
-                    await response.WriteStringAsync(JsonSerializer.Serialize(resultado));
-                    return response;
+                    bool existeEnDirectorioActivo = SimularDirectorioActivo(usuario);
+                    _logger.LogInformation($"Usuario '{usuario}' en Directorio Activo: {existeEnDirectorioActivo}");
+                    
+                    if (!existeEnDirectorioActivo)
+                    {
+                        _logger.LogInformation($"Usuario '{usuario}' no encontrado en Directorio Activo");
+                        var response = req.CreateResponse(HttpStatusCode.OK);
+                        response.Headers.Add("Content-Type", "application/json");
+                        var resultado = new { esValido = false, motivo = "Usuario no encontrado en Directorio Activo" };
+                        await response.WriteStringAsync(JsonSerializer.Serialize(resultado));
+                        return response;
+                    }
                 }
 
                 // 2. Bypass para administrador
@@ -136,7 +139,7 @@ namespace InscripcionEntidades
         private bool SimularDirectorioActivo(string usuario)
         {
             // Simulación: usuarios que existen en AD
-            var usuariosValidos = new[] { "adminSief", "AlfredoMamby" };
+            var usuariosValidos = new[] { "adminSief" };
             return usuariosValidos.Contains(usuario, StringComparer.OrdinalIgnoreCase);
         }
     }
