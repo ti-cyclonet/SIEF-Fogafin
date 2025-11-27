@@ -592,10 +592,7 @@
         });
         
         // Botón exportar
-        document.getElementById('btnExportar').addEventListener('click', () => {
-          // Función de exportar a implementar
-          alert('Función de exportar en desarrollo');
-        });
+        document.getElementById('btnExportar').addEventListener('click', exportarAExcel);
       });
 
       // Función para cargar sectores desde el endpoint
@@ -813,6 +810,48 @@
       // Función para ver detalle de entidad
       function verDetalleEntidad(entidadId) {
         window.location.href = `detalle-entidad.html?id=${entidadId}`;
+      }
+      
+      // Función para exportar a Excel
+      function exportarAExcel() {
+        if (entidadesFiltradas.length === 0) {
+          alert('No hay datos para exportar');
+          return;
+        }
+        
+        // Crear datos para Excel
+        const datosExcel = entidadesFiltradas.map(entidad => ({
+          'Sector': entidad.SectorId || '',
+          'Entidad': entidad.EntidadId || '',
+          'Nombre de la entidad': entidad.Nombre || '',
+          'NIT': entidad.Nit || '',
+          'Fecha de inscripción': entidad.FechaInscripcion ? new Date(entidad.FechaInscripcion).toLocaleDateString('es-CO') : '',
+          'Nombre Representante': entidad.NombreRepresentante || '',
+          'Correo notificación': entidad.CorreoNotificacion || '',
+          'Capital suscrito': entidad.CapitalSuscrito ? formatearMoneda(entidad.CapitalSuscrito) : '',
+          'Pago inscripción': entidad.ValorPagado ? formatearMonedaConDecimales(entidad.ValorPagado) : '',
+          'Fecha de pago': entidad.FechaPago ? new Date(entidad.FechaPago).toLocaleDateString('es-CO') : '',
+          'Estado del trámite': entidad.EstadoNombre || ''
+        }));
+        
+        // Convertir a CSV
+        const headers = Object.keys(datosExcel[0]);
+        const csvContent = [
+          headers.join(','),
+          ...datosExcel.map(row => headers.map(header => `"${row[header]}"`).join(','))
+        ].join('\n');
+        
+        // Crear y descargar archivo con BOM para UTF-8
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `entidades_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
 
 
