@@ -74,68 +74,96 @@
 
       </div>
 
+      <!-- Filtros -->
       <div class="mb-4">
-        <div class="row">
-          <div class="col-md-8">
-            <table class="table table-borderless">
-              <tbody>
-                <tr>
-                  <td class="fw-bold" style="width: 25%;">Sector:</td>
-                  <td>
-                    <select id="selectSector" class="form-select">
-                      <option value="">Seleccione...</option>
-                    </select>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="fw-bold">Entidad:</td>
-                  <td>
-                    <div class="position-relative">
-                      <input type="text" id="buscarEntidad" class="form-control" placeholder="Buscar entidad..." autocomplete="off" />
-                      <select id="selectEntidad" class="form-select d-none" size="5">
-                        <option value="">Seleccione...</option>
-                      </select>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="fw-bold">Estado del trámite:</td>
-                  <td>
-                    <input type="text" id="selectEstado" class="form-control" placeholder="Seleccione una entidad..." readonly style="background-color: #f8f9fa; color: #6c757d;" />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-bold">Sector:</label>
+            <select id="selectSector" class="form-select">
+              <option value="">Todos los sectores</option>
+            </select>
           </div>
-          <div class="col-md-6">
+          <div class="col-md-4">
+            <label class="form-label fw-bold">Nombre de entidad:</label>
+            <input type="text" id="buscarEntidad" class="form-control" placeholder="Buscar por nombre..." />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold">Estado del trámite:</label>
+            <select id="selectEstado" class="form-select">
+              <option value="">Todos los estados</option>
+            </select>
           </div>
         </div>
       </div>
 
-      <div id="informacionEntidad" class="d-none">
-        <table class="table table-borderless">
-          <tbody>
-            <tr>
-              <td class="fw-bold" style="width: 25%;">Tipo de entidad*</td>
-              <td style="width: 25%;" id="tipoEntidad"></td>
-              <td class="fw-bold" style="width: 25%;">NIT:</td>
-              <td style="width: 25%;" id="nitEntidad"></td>
-            </tr>
-            <tr>
-              <td class="fw-bold">Correo de notificación*</td>
-              <td id="correoNotificacion"></td>
-              <td class="fw-bold">Página web:</td>
-              <td id="paginaWeb"></td>
-            </tr>
-            <tr>
-              <td class="fw-bold">Número de trámite</td>
-              <td id="numeroTramite"></td>
-              <td class="fw-bold">Fecha de inscripción:</td>
-              <td id="fechaInscripcion"></td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Línea verde antes de la tabla -->
+      <hr style="border-color: #28a745; opacity: 0.6; margin: 0;">
+      
+      <!-- Tabla de resultados -->
+      <div id="tablaResultados">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover" style="font-size: 0.75rem;">
+            <thead class="table-light">
+              <tr>
+                <th>Sector</th>
+                <th>Entidad</th>
+                <th>Nombre de la entidad</th>
+                <th>NIT</th>
+                <th>Fecha de inscripción</th>
+                <th>Nombre Representante</th>
+                <th>Correo notificación</th>
+                <th>Capital suscrito</th>
+                <th>Pago inscripción</th>
+                <th>Fecha de pago</th>
+                <th>Estado del trámite</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaEntidadesBody">
+              <tr>
+                <td colspan="12" class="text-center text-muted py-4">
+                  <i class="fas fa-spinner fa-spin me-2"></i>Cargando entidades...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Línea verde después de la tabla -->
+        <hr style="border-color: #28a745; opacity: 0.6; margin: 0;">
+        
+        <!-- Controles debajo de la tabla -->
+        <div class="row mt-3">
+          <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <button type="button" class="btn btn-outline-secondary me-2" id="btnLimpiarFiltros">
+                  <i class="fas fa-eraser me-1"></i>Limpiar
+                </button>
+                <button type="button" class="btn btn-outline-success me-2" id="btnExportar">
+                  <i class="fas fa-download me-1"></i>Exportar
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="btnCerrar">
+                  <i class="fas fa-times me-1"></i>Cerrar
+                </button>
+              </div>
+              <div>
+                <small class="text-muted" id="leyendaResultados">Cargando...</small>
+              </div>
+              <div>
+                <nav aria-label="Paginación de entidades">
+                  <ul class="pagination mb-0" id="paginacion">
+                    <!-- Se genera dinámicamente -->
+                  </ul>
+                </nav>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
+
+
 
       <div id="detalleEntidad" class="form-info-section d-none">
         <ul class="nav nav-tabs" id="entidadTab" role="tablist">
@@ -295,15 +323,7 @@
         </div>
       </div>
       
-      <!-- Botones centrados al final -->
-      <div class="d-flex justify-content-center mt-4">
-        <button type="button" class="btn btn-secondary me-3" id="btnLimpiar">
-          <i class="fas fa-eraser me-1"></i>Limpiar
-        </button>
-        <button type="button" class="btn btn-outline-primary" id="btnCerrar">
-          <i class="fas fa-times me-1"></i>Cerrar
-        </button>
-      </div>
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -551,62 +571,37 @@
         cargarSectores();
         cargarEstados();
         
-        // Event listeners para filtros
-        document.getElementById('selectSector').addEventListener('change', (e) => {
-          const sectorId = e.target.value;
-          cargarEntidadesPorSector(sectorId);
-          limpiarDetalles();
+        // Cargar todas las entidades al inicio
+        cargarTodasLasEntidades();
+        
+        // Event listeners para filtros en tiempo real
+        document.getElementById('selectSector').addEventListener('change', aplicarFiltros);
+        document.getElementById('buscarEntidad').addEventListener('input', aplicarFiltros);
+        document.getElementById('selectEstado').addEventListener('change', aplicarFiltros);
+        
+        document.getElementById('btnLimpiarFiltros').addEventListener('click', () => {
+          document.getElementById('selectSector').value = '';
+          document.getElementById('buscarEntidad').value = '';
+          document.getElementById('selectEstado').value = '';
+          aplicarFiltros();
         });
-        
-        // Buscador de entidades
-        const buscarEntidad = document.getElementById('buscarEntidad');
-        const selectEntidad = document.getElementById('selectEntidad');
-        
-        buscarEntidad.addEventListener('input', (e) => {
-          const texto = e.target.value;
-          filtrarEntidades(texto);
-          
-          if (texto && entidadesData.length > 0) {
-            selectEntidad.classList.remove('d-none');
-          } else {
-            selectEntidad.classList.add('d-none');
-          }
-        });
-        
-        buscarEntidad.addEventListener('focus', () => {
-          if (entidadesData.length > 0) {
-            selectEntidad.classList.remove('d-none');
-          }
-        });
-        
-        document.addEventListener('click', (e) => {
-          if (!e.target.closest('.position-relative')) {
-            selectEntidad.classList.add('d-none');
-          }
-        });
-        
-        selectEntidad.addEventListener('change', (e) => {
-          const selectedOption = e.target.options[e.target.selectedIndex];
-          if (selectedOption.value) {
-            buscarEntidad.value = selectedOption.textContent;
-            selectEntidad.classList.add('d-none');
-            cargarDetalleEntidad(selectedOption.value);
-          }
-        });
-        
-        // Botón limpiar
-        document.getElementById('btnLimpiar').addEventListener('click', limpiarTodo);
         
         // Botón cerrar
         document.getElementById('btnCerrar').addEventListener('click', () => {
           window.location.href = 'dashboard.html';
+        });
+        
+        // Botón exportar
+        document.getElementById('btnExportar').addEventListener('click', () => {
+          // Función de exportar a implementar
+          alert('Función de exportar en desarrollo');
         });
       });
 
       // Función para cargar sectores desde el endpoint
       async function cargarSectores() {
         const selectSector = document.getElementById('selectSector');
-        selectSector.innerHTML = '<option value="">Seleccione...</option>';
+        selectSector.innerHTML = '<option value="">Todos los sectores</option>';
 
         const codigosFiltro = [1, 2, 4, 28];
         const URL_SECTORES = getApiUrl(`ConsultarSectores/${codigosFiltro.join(',')}`);
@@ -634,7 +629,7 @@
       // Función para cargar estados
       async function cargarEstados() {
         const selectEstado = document.getElementById('selectEstado');
-        selectEstado.innerHTML = '<option value="">Seleccione...</option>';
+        selectEstado.innerHTML = '<option value="">Todos los estados</option>';
 
         try {
           const response = await fetch(getApiUrl('ConsultarEstados'));
@@ -657,286 +652,189 @@
       }
 
       let entidadesData = [];
+      let entidadesFiltradas = [];
+      let paginaActual = 1;
+      const entidadesPorPagina = 8;
 
-      // Función para cargar entidades por sector
-      async function cargarEntidadesPorSector(sectorId) {
-        const selectEntidad = document.getElementById('selectEntidad');
-        const buscarEntidad = document.getElementById('buscarEntidad');
-        
-        selectEntidad.innerHTML = '<option value="">Seleccione...</option>';
-        buscarEntidad.value = '';
-        entidadesData = [];
-
-        if (!sectorId) return;
+      // Función para cargar todas las entidades
+      async function cargarTodasLasEntidades() {
+        const tbody = document.getElementById('tablaEntidadesBody');
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Cargando entidades...</td></tr>';
 
         try {
-          const response = await fetch(getApiUrl(`entidades-por-sector/${sectorId}`));
+          const response = await fetch(getApiUrl('ConsultarTodasEntidades'));
           
           if (!response.ok) {
             throw new Error('Error al obtener las entidades');
           }
 
           entidadesData = await response.json();
-          mostrarEntidades(entidadesData);
+          entidadesFiltradas = [...entidadesData];
+          paginaActual = 1;
+          mostrarEntidadesPaginadas();
         } catch (error) {
           console.error('Error al cargar entidades:', error);
+          tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">Error al cargar las entidades</td></tr>';
         }
       }
 
-      // Función para mostrar entidades en el select
-      function mostrarEntidades(entidades) {
-        const selectEntidad = document.getElementById('selectEntidad');
-        selectEntidad.innerHTML = '<option value="">Seleccione...</option>';
+      // Función para aplicar filtros
+      function aplicarFiltros() {
+        const sectorId = document.getElementById('selectSector').value;
+        const nombreEntidad = document.getElementById('buscarEntidad').value.toLowerCase();
+        const estadoId = document.getElementById('selectEstado').value;
 
-        entidades.forEach((entidad) => {
-          const option = document.createElement('option');
-          option.value = entidad.id;
-          option.textContent = entidad.nombre;
-          selectEntidad.appendChild(option);
+        entidadesFiltradas = entidadesData.filter(entidad => {
+          const cumpleSector = !sectorId || entidad.SectorId == sectorId;
+          const cumpleNombre = !nombreEntidad || entidad.Nombre.toLowerCase().includes(nombreEntidad);
+          const cumpleEstado = !estadoId || entidad.EstadoId == estadoId;
+          
+          return cumpleSector && cumpleNombre && cumpleEstado;
         });
+
+        paginaActual = 1;
+        mostrarEntidadesPaginadas();
       }
 
-      // Función para filtrar entidades
-      function filtrarEntidades(texto) {
-        if (!texto) {
-          mostrarEntidades(entidadesData);
+      // Función para mostrar entidades con paginación
+      function mostrarEntidadesPaginadas() {
+        const tbody = document.getElementById('tablaEntidadesBody');
+        const inicio = (paginaActual - 1) * entidadesPorPagina;
+        const fin = inicio + entidadesPorPagina;
+        const entidadesPagina = entidadesFiltradas.slice(inicio, fin);
+
+        if (entidadesPagina.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">No se encontraron entidades con los filtros aplicados</td></tr>';
+          generarPaginacion(0);
           return;
         }
 
-        const entidadesFiltradas = entidadesData.filter(entidad => 
-          entidad.nombre.toLowerCase().includes(texto.toLowerCase())
-        );
-        mostrarEntidades(entidadesFiltradas);
+        tbody.innerHTML = '';
+        entidadesPagina.forEach(entidad => {
+          const fila = document.createElement('tr');
+          fila.innerHTML = `
+            <td>${entidad.SectorId || '-'}</td>
+            <td>${entidad.EntidadId || '-'}</td>
+            <td>${entidad.Nombre || '-'}</td>
+            <td>${entidad.Nit || '-'}</td>
+            <td>${entidad.FechaInscripcion ? new Date(entidad.FechaInscripcion).toLocaleDateString('es-CO') : '-'}</td>
+            <td>${entidad.NombreRepresentante || '-'}</td>
+            <td>${entidad.CorreoNotificacion || '-'}</td>
+            <td>${entidad.CapitalSuscrito ? formatearMoneda(entidad.CapitalSuscrito) : '-'}</td>
+            <td>${entidad.ValorPagado ? formatearMonedaConDecimales(entidad.ValorPagado) : '-'}</td>
+            <td>${entidad.FechaPago ? new Date(entidad.FechaPago).toLocaleDateString('es-CO') : '-'}</td>
+            <td><span class="badge bg-${obtenerColorEstado(entidad.EstadoNombre)}">${entidad.EstadoNombre || '-'}</span></td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary" onclick="verDetalleEntidad(${entidad.Id})">
+                <i class="fas fa-eye"></i>
+              </button>
+            </td>
+          `;
+          tbody.appendChild(fila);
+        });
+
+        generarPaginacion(entidadesFiltradas.length);
+        actualizarLeyenda();
       }
-
-      // Función para cargar detalles de la entidad seleccionada
-      async function cargarDetalleEntidad(entidadId) {
-        if (!entidadId) {
-          limpiarDetalles();
-          return;
-        }
-
-        try {
-          const response = await fetch(getApiUrl(`ConsultarDetalleEntidad/${entidadId}`));
-          
-          if (!response.ok) {
-            throw new Error('Error al obtener el detalle de la entidad');
-          }
-
-          const detalle = await response.json();
-          
-          // Asegurar que el ID esté disponible
-          detalle.id = entidadId;
-          
-          // Si tenemos NIT y número de trámite, consultar el estado usando el endpoint que funciona
-          if (detalle.nit && detalle.numeroTramite) {
-            try {
-              const estadoUrl = getApiUrl(`estado-tramite/${detalle.nit}/${detalle.numeroTramite}`);
-              const estadoResponse = await fetch(estadoUrl);
-              if (estadoResponse.ok) {
-                const estadoData = await estadoResponse.json();
-                detalle.estadoTramite = estadoData.EstadoTramite;
-                detalle.estadoId = estadoData.EstadoId || '12';
-                detalle.estadoData = estadoData;
-              }
-            } catch (estadoError) {
-              // Error silencioso
-            }
-          }
-          
-          mostrarDetalleEntidad(detalle);
-        } catch (error) {
-          console.error('Error al cargar detalle:', error);
-          Swal.fire('Error', 'No se pudo cargar la información de la entidad', 'error');
+      
+      // Función para actualizar leyenda de resultados
+      function actualizarLeyenda() {
+        const inicio = (paginaActual - 1) * entidadesPorPagina + 1;
+        const fin = Math.min(paginaActual * entidadesPorPagina, entidadesFiltradas.length);
+        const total = entidadesFiltradas.length;
+        
+        const leyenda = document.getElementById('leyendaResultados');
+        if (total === 0) {
+          leyenda.textContent = 'No se encontraron entidades';
+        } else {
+          leyenda.textContent = `Mostrando ${inicio}-${fin} de ${total} entidades${total !== entidadesData.length ? ' filtradas' : ''}`;
         }
       }
+
+      // Función para generar paginación
+      function generarPaginacion(totalEntidades) {
+        const paginacion = document.getElementById('paginacion');
+        const totalPaginas = Math.ceil(totalEntidades / entidadesPorPagina);
+        
+        paginacion.innerHTML = '';
+        
+        if (totalPaginas <= 1) return;
+
+        // Botón anterior
+        const btnAnterior = document.createElement('li');
+        btnAnterior.className = `page-item ${paginaActual === 1 ? 'disabled' : ''}`;
+        btnAnterior.innerHTML = '<a class="page-link" href="#" onclick="cambiarPagina(' + (paginaActual - 1) + ')">Anterior</a>';
+        paginacion.appendChild(btnAnterior);
+
+        // Calcular rango de páginas a mostrar (5 páginas)
+        let inicio = Math.max(1, paginaActual - 2);
+        let fin = Math.min(totalPaginas, inicio + 4);
+        
+        // Ajustar inicio si estamos cerca del final
+        if (fin - inicio < 4) {
+          inicio = Math.max(1, fin - 4);
+        }
+
+        // Números de página
+        for (let i = inicio; i <= fin; i++) {
+          const btnPagina = document.createElement('li');
+          btnPagina.className = `page-item ${i === paginaActual ? 'active' : ''}`;
+          btnPagina.innerHTML = '<a class="page-link" href="#" onclick="cambiarPagina(' + i + ')">' + i + '</a>';
+          paginacion.appendChild(btnPagina);
+        }
+
+        // Botón siguiente
+        const btnSiguiente = document.createElement('li');
+        btnSiguiente.className = `page-item ${paginaActual === totalPaginas ? 'disabled' : ''}`;
+        btnSiguiente.innerHTML = '<a class="page-link" href="#" onclick="cambiarPagina(' + (paginaActual + 1) + ')">Siguiente</a>';
+        paginacion.appendChild(btnSiguiente);
+      }
+
+      // Función para cambiar página
+      function cambiarPagina(nuevaPagina) {
+        const totalPaginas = Math.ceil(entidadesFiltradas.length / entidadesPorPagina);
+        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas) {
+          paginaActual = nuevaPagina;
+          mostrarEntidadesPaginadas();
+        }
+      }
+
+      // Función para obtener color del estado
+      function obtenerColorEstado(estado) {
+        const colores = {
+          'Inscrita': 'success',
+          'Rechazada': 'danger',
+          'En revisión': 'warning',
+          'Pendiente': 'secondary'
+        };
+        return colores[estado] || 'primary';
+      }
+
+      // Función para ver detalle de entidad
+      function verDetalleEntidad(entidadId) {
+        window.location.href = `detalle-entidad.html?id=${entidadId}`;
+      }
+
+
 
       // Función para formatear moneda
       function formatearMoneda(valor) {
-        return "$ " + Number(valor).toLocaleString("es-CO", {minimumFractionDigits: 0, maximumFractionDigits: 0});
+        return "$" + Number(valor).toLocaleString("es-CO", {minimumFractionDigits: 0, maximumFractionDigits: 0});
       }
 
       function formatearMonedaConDecimales(valor) {
-        return "$ " + Number(valor).toLocaleString("es-CO", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        return "$" + Number(valor).toLocaleString("es-CO", {minimumFractionDigits: 2, maximumFractionDigits: 2});
       }
 
-      // Función para cargar historial de gestión
-      async function cargarHistorialGestion(entidadId) {
-        const tabla = document.querySelector('#tablaHistorial tbody');
-        if (!tabla) return;
-        
-        tabla.innerHTML = '<tr><td colspan="5" class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando historial...</td></tr>';
-        
-        try {
-          const response = await fetch(getApiUrl(`ConsultarHistorialGestion/${entidadId}`));
-          if (!response.ok) throw new Error('Error al cargar historial');
-          
-          const historial = await response.json();
-          tabla.innerHTML = '';
-          
-          if (historial.length === 0) {
-            tabla.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay registros de historial</td></tr>';
-            return;
-          }
-          
-          historial.forEach(registro => {
-            const fila = document.createElement('tr');
-            const fecha = new Date(registro.TN05_Fecha).toLocaleDateString('es-CO', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit'
-            });
-            
-            fila.innerHTML = `
-              <td>${fecha}</td>
-              <td>${registro.EstadoAnterior || '-'}</td>
-              <td><span class="badge bg-primary">${registro.EstadoActual}</span></td>
-              <td>${registro.TN05_TN03_Usuario || '-'}</td>
-              <td>${registro.TN05_Observaciones || '-'}</td>
-            `;
-            tabla.appendChild(fila);
-          });
-        } catch (error) {
-          tabla.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error al cargar el historial</td></tr>';
-        }
-      }
 
-      // Función para mostrar los detalles de la entidad
-      function mostrarDetalleEntidad(detalle) {
-        // Llenar campos de información básica
-        document.getElementById('tipoEntidad').textContent = detalle.tipoEntidad || '';
-        document.getElementById('nitEntidad').textContent = detalle.nit || '';
-        document.getElementById('correoNotificacion').textContent = detalle.correoNotificacion || '';
-        document.getElementById('paginaWeb').textContent = detalle.paginaWeb || '';
-        document.getElementById('numeroTramite').textContent = detalle.numeroTramite || '';
-        document.getElementById('fechaInscripcion').textContent = detalle.fechaInscripcion || '';
-        
-        // Establecer el estado en el campo de estado
-        const selectEstado = document.getElementById('selectEstado');
-        if (detalle.estadoTramite) {
-          selectEstado.value = detalle.estadoTramite;
-          selectEstado.style.color = '#000';
-        }
-        
-        // Llenar información del representante
-        document.getElementById('nombreRepresentante').textContent = detalle.nombreRepresentante || 'Información xxxxx';
-        document.getElementById('tipoIdentificacion').textContent = 'Cédula de ciudadanía';
-        document.getElementById('numeroDocumento').textContent = detalle.identificacionRepresentante || 'Información xxxxx';
-        document.getElementById('correoRepresentante').textContent = detalle.correoRepresentante || 'Información xxxxx';
-        document.getElementById('telefonoRepresentante').textContent = detalle.telefonoRepresentante || 'Información xxxxx';
-        document.getElementById('cargoRepresentante').textContent = detalle.cargoRepresentante || 'Información xxxxx';
-        
-        // Llenar información del responsable
-        document.getElementById('nombreResponsable').textContent = detalle.nombreResponsableRegistro || 'Información xxxxx';
-        document.getElementById('correoResponsable').textContent = detalle.correoResponsableRegistro || 'Información xxxxx';
-        document.getElementById('telefonoResponsable').textContent = detalle.telefonoResponsableRegistro || 'Información xxxxx';
-        
-        // Llenar información de inscripción y pago
-        const fechaConst = detalle.fechaConstitucion ? new Date(detalle.fechaConstitucion).toLocaleDateString('es-CO') : 'Información xxxxx';
-        document.getElementById('fechaConstitucion').textContent = fechaConst;
-        document.getElementById('capitalSuscrito').textContent = detalle.capitalSuscrito ? formatearMoneda(detalle.capitalSuscrito) : 'Información xxxxx';
-        
-        const valorPagadoCalculado = detalle.capitalSuscrito ? detalle.capitalSuscrito * 0.000115 : 0;
-        document.getElementById('valorPagado').textContent = valorPagadoCalculado > 0 ? formatearMonedaConDecimales(valorPagadoCalculado) : 'Información xxxxx';
-        
-        const fechaPago = detalle.fechaPago ? new Date(detalle.fechaPago).toLocaleDateString('es-CO') : 'Información xxxxx';
-        document.getElementById('fechaPago').textContent = fechaPago;
-        
-        // Cargar historial de gestión
-        if (detalle.id) {
-          cargarHistorialGestion(detalle.id);
-        }
-        
-        // Configurar links de archivos
-        configurarLinksArchivos(detalle.archivos || [], detalle.rutaComprobantePago);
-        
-        // Mostrar secciones
-        document.getElementById('informacionEntidad').classList.remove('d-none');
-        document.getElementById('detalleEntidad').classList.remove('d-none');
-      }
 
-      // Función para limpiar todos los campos
-      function limpiarTodo() {
-        // Limpiar selects
-        document.getElementById('selectSector').value = '';
-        document.getElementById('selectEntidad').innerHTML = '<option value="">Seleccione...</option>';
-        document.getElementById('selectEstado').value = '';
-        document.getElementById('buscarEntidad').value = '';
-        
-        // Limpiar datos de entidades
-        entidadesData = [];
-        
-        limpiarDetalles();
-      }
 
-      // Función para configurar links de archivos
-      function configurarLinksArchivos(archivos, rutaComprobantePago = null) {
-        const links = {
-          'linkCertificado': 'CERTIFICADO_',
-          'linkResolucion': 'RESOLUCION_',
-          'linkTerceros': 'TERCEROS_',
-          'linkLogo': 'LOGO_',
-          'linkSoportePago': 'PAGO_'
-        };
-        
-        Object.keys(links).forEach(linkId => {
-          const linkElement = document.getElementById(linkId);
-          if (!linkElement) return;
-          
-          const prefijo = links[linkId];
-          let archivo = archivos.find(a => a.includes(prefijo));
-          
-          // Para el soporte de pago, usar rutaComprobantePago si está disponible
-          if (linkId === 'linkSoportePago' && rutaComprobantePago) {
-            archivo = rutaComprobantePago;
-          }
-          
-          if (archivo) {
-            const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(archivo)}`);
-            linkElement.href = downloadUrl;
-            linkElement.target = '_blank';
-            linkElement.textContent = 'Ver archivo';
-            linkElement.style.pointerEvents = 'auto';
-            linkElement.style.color = '';
-          } else {
-            linkElement.href = '#';
-            linkElement.target = '';
-            linkElement.textContent = 'No disponible';
-            linkElement.style.pointerEvents = 'none';
-            linkElement.style.color = '#6c757d';
-          }
-        });
-      }
 
-      // Función para limpiar detalles
-      function limpiarDetalles() {
-        // Limpiar campos de información
-        document.getElementById('tipoEntidad').textContent = '';
-        document.getElementById('nitEntidad').textContent = '';
-        document.getElementById('correoNotificacion').textContent = '';
-        document.getElementById('paginaWeb').textContent = '';
-        document.getElementById('numeroTramite').textContent = '';
-        document.getElementById('fechaInscripcion').textContent = '';
-        document.getElementById('nombreRepresentante').textContent = 'Información xxxxx';
-        
-        // Limpiar estado del trámite
-        const selectEstado = document.getElementById('selectEstado');
-        selectEstado.value = '';
-        selectEstado.placeholder = 'Seleccione una entidad...';
-        selectEstado.style.color = '#6c757d';
-        
-        // Limpiar tabla de historial
-        const tablaHistorial = document.querySelector('#tablaHistorial tbody');
-        if (tablaHistorial) {
-          tablaHistorial.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Seleccione una entidad para ver el historial</td></tr>';
-        }
-        
-        // Ocultar secciones
-        document.getElementById('informacionEntidad').classList.add('d-none');
-        document.getElementById('detalleEntidad').classList.add('d-none');
-      }
+
+
+
+
+
 
       // 2. Evento al cambiar la entidad seleccionada
       selectEntidadGestion.addEventListener("change", (e) =>
