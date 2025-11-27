@@ -238,14 +238,15 @@
                     <td class="fw-bold">Logo:</td>
                     <td><a href="#" id="linkLogo" class="text-primary">a link</a></td>
                   </tr>
-                  <tr>
-                    <td class="fw-bold">Adjuntar documentos adicionales:</td>
+                  <tr id="filaArchivosAdicionales">
+                    <td class="fw-bold">Documentos adicionales:</td>
                     <td>
-                      <div class="file-wrapper" id="documentosAdicionalesWrapper">
-                        <span class="text-muted flex-grow-1" id="documentosAdicionalesText">Ningún archivo seleccionado</span>
-                        <span class="badge bg-light text-dark">Seleccionar archivos</span>
-                        <input type="file" id="documentosAdicionales" multiple />
-                      </div>
+                      <div id="archivosAdjuntados"></div>
+                      <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="btnAdjuntarArchivo">
+                        <i class="fas fa-plus me-1"></i>Adjuntar archivo
+                      </button>
+                      <input type="file" id="documentosAdicionales" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display: none;" />
+                      <div class="form-text">Máximo 5 archivos. Formatos: PDF, JPG, PNG, DOC, DOCX</div>
                     </td>
                   </tr>
                 </tbody>

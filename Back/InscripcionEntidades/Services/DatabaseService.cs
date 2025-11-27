@@ -83,17 +83,16 @@ namespace InscripcionEntidades.Services
                     ef.TM02_CODIGO as Id,
                     ef.TM02_NOMBRE as RazonSocial,
                     ef.TM02_NIT as Nit,
-                    ef.TM02_TM01_CODIGO as SectorId,
+                    ef.TM02_TM01_CodigoSectorF as SectorId,
                     he.TN05_TM01_EstadoActual as EstadoId,
                     est.TM01_Nombre as EstadoNombre
                 FROM TM02_ENTIDADFINANCIERA ef
-                INNER JOIN (
+                LEFT JOIN (
                     SELECT TN05_TM02_Codigo, TN05_TM01_EstadoActual,
                            ROW_NUMBER() OVER (PARTITION BY TN05_TM02_Codigo ORDER BY TN05_Fecha DESC) as rn
                     FROM TN05_Historico_Estado
                 ) he ON ef.TM02_CODIGO = he.TN05_TM02_Codigo AND he.rn = 1
-                INNER JOIN TM01_Estado est ON he.TN05_TM01_EstadoActual = est.TM01_Codigo
-                WHERE ef.TM02_ACTIVO = 0";
+                LEFT JOIN TM01_Estado est ON he.TN05_TM01_EstadoActual = est.TM01_Codigo";
 
             var parameters = new List<SqlParameter>();
 
@@ -121,7 +120,7 @@ namespace InscripcionEntidades.Services
             }
             else
             {
-                query += " AND he.TN05_TM01_EstadoActual BETWEEN 1 AND 16";
+                query += " AND he.TN05_TM01_EstadoActual IN (12, 13, 14)";
             }
 
             using var connection = new SqlConnection(_connectionString);
@@ -140,9 +139,9 @@ namespace InscripcionEntidades.Services
                     Id = reader.GetInt32(0),
                     RazonSocial = reader.IsDBNull(1) ? "" : reader.GetString(1),
                     Nit = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                    SectorId = reader.GetInt32(3),
-                    EstadoId = reader.GetInt32(4),
-                    EstadoNombre = reader.IsDBNull(5) ? "" : reader.GetString(5)
+                    SectorId = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    EstadoId = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                    EstadoNombre = reader.IsDBNull(5) ? "Sin estado" : reader.GetString(5)
                 });
             }
 
