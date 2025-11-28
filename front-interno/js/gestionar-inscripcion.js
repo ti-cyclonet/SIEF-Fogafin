@@ -284,6 +284,23 @@ function configurarLinksArchivos(archivos, rutaComprobantePago = null) {
       tablaDocumentos.appendChild(newRow);
     });
   }
+  
+  // Mostrar documentos adicionales de pago
+  const tablaDocumentosPago = document.querySelector('#tablaDocumentosAdicionalesPago tbody');
+  const documentosAdicionalesPago = archivos ? archivos.filter(a => a.includes('ADICIONAL_PAGO_')) : [];
+  
+  if (tablaDocumentosPago) {
+    tablaDocumentosPago.innerHTML = '';
+    documentosAdicionalesPago.forEach((archivo, index) => {
+      const downloadUrl = `${API_BASE_URL}DescargarArchivo?url=${encodeURIComponent(archivo)}`;
+      const newRow = document.createElement('tr');
+      newRow.innerHTML = `
+        <td class="fw-bold" style="width: 40%;">Documento [${index + 1}]:</td>
+        <td><a href="${downloadUrl}" target="_blank" class="text-primary">Ver archivo</a></td>
+      `;
+      tablaDocumentosPago.appendChild(newRow);
+    });
+  }
 }
 
 function actualizarBotonesGestion(estadoNombre) {
@@ -335,9 +352,21 @@ function controlarEditabilidadInformacionGeneral() {
   
   if (isDOT) {
     const btnAprobarDocumentos = document.getElementById('btnAprobarDocumentos');
+    const btnAprobarInscripcion = document.getElementById('btnAprobarInscripcion');
     const btnRechazarInscripcion = document.getElementById('btnRechazarInscripcion');
     if (btnAprobarDocumentos) btnAprobarDocumentos.style.display = 'none';
+    if (btnAprobarInscripcion) btnAprobarInscripcion.style.display = 'none';
     if (btnRechazarInscripcion) btnRechazarInscripcion.style.display = 'none';
+  }
+  
+  if (isSSD && !isAdmin) {
+    const userPerfil = localStorage.getItem('userPerfil');
+    const isJefeSSD = userPerfil === 'Jefe SSD';
+    
+    if (!isJefeSSD) {
+      const btnAprobarInscripcion = document.getElementById('btnAprobarInscripcion');
+      if (btnAprobarInscripcion) btnAprobarInscripcion.style.display = 'none';
+    }
   }
   
   if (isSSD && !isAdmin) {
@@ -348,13 +377,10 @@ function controlarEditabilidadInformacionGeneral() {
     const filaArchivosAdicionales = document.getElementById('filaArchivosAdicionales');
     const documentosAdicionalesPagoWrapper = document.getElementById('documentosAdicionalesPagoWrapper');
     
-    if (btnModificarCapital) btnModificarCapital.style.display = 'none';
+    if (!isJefeSSD && btnModificarCapital) btnModificarCapital.style.display = 'none';
     if (!isJefeSSD && filaArchivosAdicionales) filaArchivosAdicionales.style.display = 'none';
-    if (documentosAdicionalesPagoWrapper) {
-      documentosAdicionalesPagoWrapper.style.display = 'none';
-      const filaDocumentosAdicionalesPago = documentosAdicionalesPagoWrapper.closest('tr');
-      if (filaDocumentosAdicionalesPago) filaDocumentosAdicionalesPago.style.display = 'none';
-    }
+    const filaArchivosAdicionalesPago = document.getElementById('filaArchivosAdicionalesPago');
+    if (!isJefeSSD && filaArchivosAdicionalesPago) filaArchivosAdicionalesPago.style.display = 'none';
   }
 }
 
@@ -421,6 +447,13 @@ function setupEventListeners() {
   const btnCancelarSubida = document.getElementById('btnCancelarSubida');
   const documentosAdicionales = document.getElementById('documentosAdicionales');
   
+  // Elementos para documentos adicionales de pago
+  const btnAdjuntarArchivoPago = document.getElementById('btnAdjuntarArchivoPago');
+  const uploadSectionPago = document.getElementById('uploadSectionPago');
+  const btnSubirArchivoPago = document.getElementById('btnSubirArchivoPago');
+  const btnCancelarSubidaPago = document.getElementById('btnCancelarSubidaPago');
+  const documentosAdicionalesPago = document.getElementById('documentosAdicionalesPago');
+  
   if (btnAdjuntarArchivo && uploadSection) {
     btnAdjuntarArchivo.addEventListener('click', () => {
       uploadSection.classList.remove('d-none');
@@ -441,6 +474,8 @@ function setupEventListeners() {
   const documentosAdicionalesWrapper = document.getElementById('documentosAdicionalesWrapper');
   const documentosAdicionalesText = document.getElementById('documentosAdicionalesText');
   
+
+  
   if (documentosAdicionalesWrapper && documentosAdicionales && documentosAdicionalesText) {
     documentosAdicionalesWrapper.addEventListener('click', () => {
       documentosAdicionales.click();
@@ -454,6 +489,54 @@ function setupEventListeners() {
         documentosAdicionalesText.textContent = 'Ningún archivo seleccionado';
         documentosAdicionalesText.className = 'text-muted flex-grow-1';
       }
+    });
+  }
+  
+  // Event listeners para documentos adicionales de pago
+  if (btnAdjuntarArchivoPago && uploadSectionPago) {
+    btnAdjuntarArchivoPago.addEventListener('click', () => {
+      uploadSectionPago.classList.remove('d-none');
+      btnAdjuntarArchivoPago.classList.add('d-none');
+    });
+  }
+  
+  if (btnCancelarSubidaPago && uploadSectionPago && btnAdjuntarArchivoPago && documentosAdicionalesPago) {
+    btnCancelarSubidaPago.addEventListener('click', () => {
+      uploadSectionPago.classList.add('d-none');
+      btnAdjuntarArchivoPago.classList.remove('d-none');
+      documentosAdicionalesPago.value = '';
+      const textSpan = document.getElementById('documentosAdicionalesPagoText');
+      if (textSpan) textSpan.textContent = 'Ningún archivo seleccionado';
+    });
+  }
+  
+  const documentosAdicionalesPagoWrapper = document.getElementById('documentosAdicionalesPagoWrapper');
+  const documentosAdicionalesPagoText = document.getElementById('documentosAdicionalesPagoText');
+  
+  if (documentosAdicionalesPagoWrapper && documentosAdicionalesPago && documentosAdicionalesPagoText) {
+    documentosAdicionalesPagoWrapper.addEventListener('click', () => {
+      documentosAdicionalesPago.click();
+    });
+    
+    documentosAdicionalesPago.addEventListener('change', () => {
+      if (documentosAdicionalesPago.files && documentosAdicionalesPago.files.length > 0) {
+        documentosAdicionalesPagoText.textContent = documentosAdicionalesPago.files[0].name;
+        documentosAdicionalesPagoText.className = 'text-dark flex-grow-1';
+      } else {
+        documentosAdicionalesPagoText.textContent = 'Ningún archivo seleccionado';
+        documentosAdicionalesPagoText.className = 'text-muted flex-grow-1';
+      }
+    });
+  }
+  
+  if (btnSubirArchivoPago && documentosAdicionalesPago) {
+    btnSubirArchivoPago.addEventListener('click', async () => {
+      const archivo = documentosAdicionalesPago.files[0];
+      if (!archivo) {
+        Swal.fire('Error', 'Seleccione un archivo', 'error');
+        return;
+      }
+      await subirArchivoAdicionalPago(archivo);
     });
   }
   
@@ -505,6 +588,65 @@ function setupEventListeners() {
       selectEntidad.classList.add('d-none');
     }
   });
+  
+  const btnModificarCapital = document.getElementById('btnModificarCapital');
+  if (btnModificarCapital) {
+    btnModificarCapital.addEventListener('click', async () => {
+      const entidadId = obtenerEntidadSeleccionadaId();
+      if (!entidadId) {
+        Swal.fire('Error', 'No hay entidad seleccionada', 'error');
+        return;
+      }
+      
+      const { value: formValues } = await Swal.fire({
+        title: 'Modificar Capital Suscrito',
+        html: `
+          <input id="swal-input1" class="swal2-input" type="number" placeholder="Nuevo capital suscrito" step="0.01">
+          <textarea id="swal-input2" class="swal2-textarea" placeholder="Observaciones (obligatorio)" rows="3"></textarea>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Actualizar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+          const capital = document.getElementById('swal-input1').value;
+          const observaciones = document.getElementById('swal-input2').value;
+          if (!capital || !observaciones.trim()) {
+            Swal.showValidationMessage('Todos los campos son obligatorios');
+            return false;
+          }
+          return { capital: parseFloat(capital), observaciones: observaciones.trim() };
+        }
+      });
+      
+      if (formValues) {
+        try {
+          const currentUser = localStorage.getItem('currentUser') || 'Usuario';
+          const observacionCompleta = `El capital suscrito se cambia por: ${formValues.observaciones}`;
+          const response = await fetch(`${API_BASE_URL}ActualizarCapitalSuscrito`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              entidadId: parseInt(entidadId), 
+              capitalSuscrito: formValues.capital,
+              observaciones: observacionCompleta,
+              usuario: currentUser
+            })
+          });
+          
+          if (response.ok) {
+            Swal.fire('Éxito', 'Capital suscrito actualizado correctamente', 'success');
+            cargarDetalleEntidad(entidadId);
+          } else {
+            const errorText = await response.text();
+            Swal.fire('Error', errorText || 'No se pudo actualizar el capital', 'error');
+          }
+        } catch (error) {
+          Swal.fire('Error', 'Error de conexión', 'error');
+        }
+      }
+    });
+  }
   
   const botones = [
     { id: 'btnLimpiar', handler: () => {
@@ -570,11 +712,66 @@ function agregarArchivoVisualmente(nombreArchivo, url) {
   if (!tablaDocumentos) return;
   
   const existingDocs = tablaDocumentos.children.length;
+  const downloadUrl = `${API_BASE_URL}DescargarArchivo?url=${encodeURIComponent(url)}&inline=true`;
   
   const newRow = document.createElement('tr');
   newRow.innerHTML = `
     <td class="fw-bold" style="width: 40%;">Documento [${existingDocs + 1}]:</td>
-    <td><a href="${url}" target="_blank" class="text-primary">Ver archivo</a></td>
+    <td><a href="${downloadUrl}" target="_blank" class="text-primary">Ver archivo</a></td>
+  `;
+  tablaDocumentos.appendChild(newRow);
+}
+
+async function subirArchivoAdicionalPago(archivo) {
+  try {
+    Swal.fire({title: 'Subiendo archivo...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    
+    const entidadId = obtenerEntidadSeleccionadaId();
+    if (!entidadId) {
+      Swal.fire('Error', 'No hay entidad seleccionada', 'error');
+      return;
+    }
+    
+    const fileBase64 = await convertirArchivoABase64(archivo);
+    const response = await fetch(`${API_BASE_URL}SubirDocumentoAdicionalPago?entidadId=${entidadId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        archivoBase64: fileBase64,
+        nombreArchivo: archivo.name
+      })
+    });
+    
+    if (!response.ok) throw new Error('Error al subir archivo');
+    
+    const resultado = await response.json();
+    agregarArchivoVisualmentePago(archivo.name, resultado.url);
+    
+    const uploadSectionPago = document.getElementById('uploadSectionPago');
+    const btnAdjuntarArchivoPago = document.getElementById('btnAdjuntarArchivoPago');
+    const documentosAdicionalesPago = document.getElementById('documentosAdicionalesPago');
+    
+    if (uploadSectionPago) uploadSectionPago.classList.add('d-none');
+    if (btnAdjuntarArchivoPago) btnAdjuntarArchivoPago.classList.remove('d-none');
+    if (documentosAdicionalesPago) documentosAdicionalesPago.value = '';
+    
+    Swal.fire({icon: 'success', title: 'Archivo subido', text: 'El archivo se ha agregado correctamente', timer: 2000, showConfirmButton: false});
+  } catch (error) {
+    Swal.fire('Error', 'No se pudo subir el archivo', 'error');
+  }
+}
+
+function agregarArchivoVisualmentePago(nombreArchivo, url) {
+  const tablaDocumentos = document.querySelector('#tablaDocumentosAdicionalesPago tbody');
+  if (!tablaDocumentos) return;
+  
+  const existingDocs = tablaDocumentos.children.length;
+  const downloadUrl = `${API_BASE_URL}DescargarArchivo?url=${encodeURIComponent(url)}&inline=true`;
+  
+  const newRow = document.createElement('tr');
+  newRow.innerHTML = `
+    <td class="fw-bold" style="width: 40%;">Documento [${existingDocs + 1}]:</td>
+    <td><a href="${downloadUrl}" target="_blank" class="text-primary">Ver archivo</a></td>
   `;
   tablaDocumentos.appendChild(newRow);
 }

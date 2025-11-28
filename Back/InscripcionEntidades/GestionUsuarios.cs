@@ -221,6 +221,15 @@ namespace InscripcionEntidades
                 string area = data["area"].ToString();
                 string perfil = data["perfil"].ToString();
                 string estado = data["estado"].ToString();
+                
+                if (!IsValidPerfil(perfil))
+                {
+                    var response = req.CreateResponse(HttpStatusCode.BadRequest);
+                    response.Headers.Add("Content-Type", "application/json");
+                    var error = new { success = false, message = $"Perfil '{perfil}' no válido. Perfiles disponibles: Consulta, DOT, Jefe SSD, Profesional SSD" };
+                    await response.WriteStringAsync(JsonSerializer.Serialize(error));
+                    return response;
+                }
 
                 var nombres = nombreCompleto.Split(' ', 2);
                 string nombre = nombres[0];
@@ -246,6 +255,7 @@ namespace InscripcionEntidades
 
                             using (var cmd = new SqlCommand(updateResponsable, connection, transaction))
                             {
+                                cmd.CommandTimeout = 60;
                                 cmd.Parameters.AddWithValue("@nombre", nombre);
                                 cmd.Parameters.AddWithValue("@apellidos", apellidos);
                                 cmd.Parameters.AddWithValue("@email", email ?? "");
@@ -259,13 +269,17 @@ namespace InscripcionEntidades
                             string updatePerfil = @"
                                 UPDATE [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
                                 SET [TM15_TM14_Perfil] = @perfil
-                                WHERE [TM15_TM04_Identificacion] = @identificacion AND [TM15_TM12_TM01_Codigo] = 17";
+                                WHERE [TM15_TM04_Identificacion] = @identificacion 
+                                AND [TM15_TM12_TM01_Codigo] = 17 
+                                AND [TM15_TM12_Ambiente] IN ('PROD', 'PRODUCCION', 'PRUEBAS')";
 
                             using (var cmd = new SqlCommand(updatePerfil, connection, transaction))
                             {
+                                cmd.CommandTimeout = 120;
                                 cmd.Parameters.AddWithValue("@perfil", perfil);
                                 cmd.Parameters.AddWithValue("@identificacion", identificacion);
-                                await cmd.ExecuteNonQueryAsync();
+                                int rowsAffected = await cmd.ExecuteNonQueryAsync();
+                                _logger.LogInformation($"Filas actualizadas: {rowsAffected}");
                             }
 
                             transaction.Commit();
@@ -420,12 +434,21 @@ namespace InscripcionEntidades
             return area switch
             {
                 "SSD" => "59030",
-                "DIF" => "52060",
+                "DEPARTAMENTO DEL SISTEMA DE SEGURO DE DEPOSITOS" => "59030",
+                "DEPARTAMENTO DE OPERACIONES DE TESORERÍA" => "52050",
+                "DIF" => "52060", 
                 "DOT" => "52050",
                 "DGC" => "52070",
-                "SMR" => "59010",
+                "SMR" => "52010",
+                "DJU" => "51020",
                 _ => "59030"
             };
+        }
+        
+        private bool IsValidPerfil(string perfil)
+        {
+            var validPerfiles = new[] { "Consulta", "DOT", "Jefe SSD", "Profesional SSD" };
+            return validPerfiles.Contains(perfil);
         }
     }
 }
