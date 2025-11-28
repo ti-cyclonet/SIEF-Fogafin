@@ -39,11 +39,12 @@ namespace InscripcionEntidades
                         SELECT COUNT(*)
                         FROM [SistemasComunes].[dbo].[TM04_Responsables] r
                         INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
-                        WHERE c.TM15_TM12_TM01_Codigo = 17 AND c.TM15_TM12_Ambiente IN ('PROD', 'PRODUCCION')";
+                        WHERE c.TM15_TM12_TM01_Codigo = 17 AND c.TM15_TM12_Ambiente IN ('PROD', 'PRODUCCION', 'PRUEBAS')";
 
                     int totalRecords;
                     using (var countCommand = new SqlCommand(countQuery, connection))
                     {
+                        countCommand.CommandTimeout = 60;
                         totalRecords = (int)await countCommand.ExecuteScalarAsync();
                     }
 
@@ -56,17 +57,17 @@ namespace InscripcionEntidades
                             s.TM03_Codigo AS CodigoArea,
                             c.TM15_TM14_Perfil AS Perfil,
                             CASE WHEN r.TM04_Activo = 1 THEN 'Activo' ELSE 'Inactivo' END AS Estado,
-                            p.TM14_Descripcion AS DescripcionPerfil
+                            c.TM15_TM14_Perfil AS DescripcionPerfil
                         FROM [SistemasComunes].[dbo].[TM04_Responsables] r
                         INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
                         INNER JOIN [SistemasComunes].[dbo].[TM03_Subdirecciones] s ON r.TM04_TM03_Codigo = s.TM03_Codigo
-                        INNER JOIN [SistemasComunes].[dbo].[TM14_PerfilesAplicacion] p ON c.TM15_TM14_Perfil = p.TM14_Perfil AND p.TM14_TM01_Codigo = 17
-                        WHERE c.TM15_TM12_TM01_Codigo = 17 AND c.TM15_TM12_Ambiente IN ('PROD', 'PRODUCCION')
+                        WHERE c.TM15_TM12_TM01_Codigo = 17 AND c.TM15_TM12_Ambiente IN ('PROD', 'PRODUCCION', 'PRUEBAS')
                         ORDER BY r.TM04_Nombre, r.TM04_Apellidos
                         OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
                     using (var command = new SqlCommand(query, connection))
                     {
+                        command.CommandTimeout = 60; // 60 segundos timeout
                         command.Parameters.AddWithValue("@Offset", offset);
                         command.Parameters.AddWithValue("@PageSize", pageSize);
                         

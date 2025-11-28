@@ -78,13 +78,13 @@ namespace InscripcionEntidades
                         WHERE r.TM04_Identificacion = @usuario 
                         AND r.TM04_Activo = 1
                         AND c.TM15_TM12_TM01_Codigo = 17
-                        AND c.TM15_TM12_Ambiente = 'PROD'";
+                        AND c.TM15_TM12_Ambiente IN ('PROD', 'PRODUCCION', 'PRUEBAS')";
 
                     using (var command = new SqlCommand(query, connection))
                     {
                         command.Parameters.AddWithValue("@usuario", usuario);
                         
-                        _logger.LogInformation($"Ejecutando consulta: {query} con usuario: {usuario}");
+                        _logger.LogInformation($"Ejecutando consulta para ambientes PROD y PRODUCCION con usuario: {usuario}");
 
                         using (var reader = await command.ExecuteReaderAsync())
                         {
