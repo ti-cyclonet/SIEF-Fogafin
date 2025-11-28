@@ -111,7 +111,7 @@
                             <option value="">Todos los perfiles</option>
                             <option value="Jefe SSD">Jefe SSD</option>
                             <option value="Profesional SSD">Profesional SSD</option>
-                            <option value="DOT">DOT</option>
+                            <option value="Profesional DOT">Profesional DOT</option>
                             <option value="Consulta">Consulta</option>
                         </select>
                     </div>
@@ -210,7 +210,7 @@
                                     <option value="">Seleccionar perfil para SIEF</option>
                                     <option value="Jefe SSD">Jefe SSD</option>
                                     <option value="Profesional SSD">Profesional SSD</option>
-                                    <option value="DOT">DOT</option>
+                                    <option value="Profesional DOT">Profesional DOT</option>
                                     <option value="Consulta">Consulta</option>
                                 </select>
                             </div>
@@ -255,7 +255,7 @@
         const permisosPorPerfil = {
             'Jefe SSD': 'Aprobación de solicitudes, edición de información y cargue de documentos.',
             'Profesional SSD': 'Consulta de trámites y cargue de documentos.',
-            'DOT': 'Aprobación de solicitudes, consulta de trámites, edición de información y cargue de documentos.',
+            'Profesional DOT': 'Aprobación de solicitudes, consulta de trámites, edición de información y cargue de documentos.',
             'Consulta': 'Solo consulta de datos del trámite.'
         };
 
@@ -392,7 +392,7 @@
             const classes = {
                 'Jefe SSD': 'perfil-jefe-ssd',
                 'Profesional SSD': 'perfil-profesional-ssd',
-                'DOT': 'perfil-jefe-dot',
+                'Profesional DOT': 'perfil-profesional-dot',
                 'Consulta': 'perfil-consulta'
             };
             return classes[perfil] || 'bg-secondary';

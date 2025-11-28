@@ -447,7 +447,7 @@ namespace InscripcionEntidades
         
         private bool IsValidPerfil(string perfil)
         {
-            var validPerfiles = new[] { "Consulta", "DOT", "Jefe SSD", "Profesional SSD" };
+            var validPerfiles = new[] { "Consulta", "Profesional DOT", "Jefe SSD", "Profesional SSD" };
             return validPerfiles.Contains(perfil);
         }
     }

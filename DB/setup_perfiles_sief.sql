@@ -9,7 +9,6 @@ BEGIN
     VALUES 
     (17, 'Jefe SSD', 'Perfil encargado de la aprobación de solicitudes, edición de información y cargue de documentos'),
     (17, 'Profesional SSD', 'Perfil habilitado para la consulta de trámites y cargue de documentos'),
-    (17, 'Jefe DOT', 'Perfil habilitado para la consulta de trámites, cargue de documentos y cambios de estado'),
     (17, 'Profesional DOT', 'Perfil habilitado para la consulta de trámites, cargue de documentos y cambios de estado'),
     (17, 'Consulta', 'Perfil habilitado para consultar los datos del trámite');
 END
@@ -25,7 +24,6 @@ BEGIN
     VALUES 
     ('Jefe SSD', 'Perfil encargado de la aprobación de solicitudes, edición de información y cargue de documentos'),
     ('Profesional SSD', 'Perfil habilitado para la consulta de trámites y cargue de documentos'),
-    ('Jefe DOT', 'Perfil habilitado para la consulta de trámites, cargue de documentos y cambios de estado'),
     ('Profesional DOT', 'Perfil habilitado para la consulta de trámites, cargue de documentos y cambios de estado'),
     ('Consulta', 'Perfil habilitado para consultar los datos del trámite');
 END

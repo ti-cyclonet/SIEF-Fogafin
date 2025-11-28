@@ -19,8 +19,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function loadEntidadesGestionables() {
   const userArea = localStorage.getItem('userArea');
+  const userPerfil = localStorage.getItem('userPerfil');
   const isDOT = userArea === '52050';
-  const estadosGestionables = isDOT ? "13" : "12,13,14";
+  const isDOTProfile = userPerfil === 'Profesional DOT';
+  
+  let estadosGestionables;
+  if (isDOTProfile) {
+    estadosGestionables = "13"; // Solo estado 13 para perfil DOT
+  } else if (isDOT) {
+    estadosGestionables = "13"; // Solo estado 13 para área DOT
+  } else {
+    estadosGestionables = "12,13,14"; // Todos los estados para otros perfiles
+  }
+  
   const url = `${API_BASE_URL}entidades-filtradas?estadoIds=${estadosGestionables}`;
   try {
     const response = await fetch(url);
@@ -222,7 +233,7 @@ function mostrarDetalleEntidad(detalle) {
   }
   window.currentDetalle = detalle;
   configurarLinksArchivos(detalle.archivos || [], detalle.rutaComprobantePago);
-  actualizarBotonesGestion(detalle.estadoNombre);
+  actualizarBotonesGestion(detalle.estadoNombre, detalle.estadoId);
   controlarEditabilidadInformacionGeneral();
   if (informacionEntidad) informacionEntidad.classList.remove('d-none');
   if (detalleEntidad) detalleEntidad.classList.remove('d-none');
@@ -303,13 +314,35 @@ function configurarLinksArchivos(archivos, rutaComprobantePago = null) {
   }
 }
 
-function actualizarBotonesGestion(estadoNombre) {
+function actualizarBotonesGestion(estadoNombre, estadoId) {
   const btnAprobarDocumentos = document.getElementById('btnAprobarDocumentos');
   const btnAprobarInscripcion = document.getElementById('btnAprobarInscripcion');
   const btnRechazarInscripcion = document.getElementById('btnRechazarInscripcion');
+  const btnAdjuntarArchivo = document.getElementById('btnAdjuntarArchivo');
   
-  if (btnAprobarDocumentos) btnAprobarDocumentos.disabled = false;
-  if (btnAprobarInscripcion) btnAprobarInscripcion.disabled = false;
+  // Aprobar documentos solo habilitado para estado 12 (En validación de documentos)
+  if (btnAprobarDocumentos) {
+    btnAprobarDocumentos.disabled = estadoId !== 12;
+  }
+  
+  // Aprobar inscripción solo habilitado para estado 14 (Pendiente de aprobación final)
+  if (btnAprobarInscripcion) {
+    btnAprobarInscripcion.disabled = estadoId !== 14;
+  }
+  
+  // Botón adjuntar archivo y leyenda solo visible para estado 12 (En validación de documentos)
+  if (btnAdjuntarArchivo) {
+    btnAdjuntarArchivo.style.display = estadoId === 12 ? 'inline-block' : 'none';
+  }
+  
+  const filaArchivosAdicionales = document.getElementById('filaArchivosAdicionales');
+  if (filaArchivosAdicionales) {
+    const leyendaFormatos = filaArchivosAdicionales.querySelector('.form-text');
+    if (leyendaFormatos) {
+      leyendaFormatos.style.display = estadoId === 12 ? 'block' : 'none';
+    }
+  }
+  
   if (btnRechazarInscripcion) btnRechazarInscripcion.disabled = false;
 }
 
@@ -358,6 +391,19 @@ function controlarEditabilidadInformacionGeneral() {
     if (btnAprobarInscripcion) btnAprobarInscripcion.style.display = 'none';
     if (btnRechazarInscripcion) btnRechazarInscripcion.style.display = 'none';
   }
+  
+  // Mostrar botones de pago solo para DOT y AdminSief
+  const userPerfil = localStorage.getItem('userPerfil');
+  const isDOTProfile = userPerfil === 'Profesional DOT';
+  const showPaymentButtons = isAdmin || isDOTProfile;
+  
+  const btnAdjuntarComprobante = document.getElementById('btnAdjuntarComprobante');
+  const btnConfirmarPago = document.getElementById('btnConfirmarPago');
+  const btnCancelarPago = document.getElementById('btnCancelarPago');
+  
+  if (btnAdjuntarComprobante) btnAdjuntarComprobante.style.display = showPaymentButtons ? 'inline-block' : 'none';
+  if (btnConfirmarPago) btnConfirmarPago.style.display = showPaymentButtons ? 'inline-block' : 'none';
+  if (btnCancelarPago) btnCancelarPago.style.display = showPaymentButtons ? 'inline-block' : 'none';
   
   if (isSSD && !isAdmin) {
     const userPerfil = localStorage.getItem('userPerfil');
@@ -577,7 +623,10 @@ function setupEventListeners() {
       if (selectedOption.value && buscarEntidad) {
         buscarEntidad.value = selectedOption.textContent;
         selectEntidad.classList.add('d-none');
-        const entidadData = { estadoNombre: selectedOption.dataset.estadoNombre || '' };
+        const entidadData = { 
+          estadoNombre: selectedOption.dataset.estadoNombre || '',
+          estadoId: parseInt(selectedOption.dataset.estadoId) || 0
+        };
         cargarDetalleEntidad(selectedOption.value, entidadData);
       }
     });
@@ -640,6 +689,109 @@ function setupEventListeners() {
           } else {
             const errorText = await response.text();
             Swal.fire('Error', errorText || 'No se pudo actualizar el capital', 'error');
+          }
+        } catch (error) {
+          Swal.fire('Error', 'Error de conexión', 'error');
+        }
+      }
+    });
+  }
+  
+  const btnAprobarDocumentos = document.getElementById('btnAprobarDocumentos');
+  if (btnAprobarDocumentos) {
+    btnAprobarDocumentos.addEventListener('click', async () => {
+      const entidadId = obtenerEntidadSeleccionadaId();
+      if (!entidadId) {
+        Swal.fire('Error', 'No hay entidad seleccionada', 'error');
+        return;
+      }
+      
+      const { value: observaciones } = await Swal.fire({
+        title: 'Aprobar Documentos',
+        input: 'textarea',
+        inputLabel: 'Observaciones',
+        inputPlaceholder: 'Ingrese observaciones sobre la aprobación...',
+        showCancelButton: true,
+        confirmButtonText: 'Aprobar',
+        cancelButtonText: 'Cancelar'
+      });
+      
+      if (observaciones !== undefined) {
+        try {
+          const currentUser = localStorage.getItem('currentUser') || 'Usuario';
+          const response = await fetch(`${API_BASE_URL}AprobarDocumentos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              entidadId: parseInt(entidadId),
+              observaciones: observaciones || 'Documentos aprobados',
+              usuario: currentUser
+            })
+          });
+          
+          if (response.ok) {
+            Swal.fire('Éxito', 'Documentos aprobados correctamente', 'success');
+            // Resetear formulario
+            if (buscarEntidad) buscarEntidad.value = '';
+            if (selectEntidad) selectEntidad.classList.add('d-none');
+            limpiarDetalles();
+          } else {
+            const errorText = await response.text();
+            Swal.fire('Error', errorText || 'No se pudieron aprobar los documentos', 'error');
+          }
+        } catch (error) {
+          Swal.fire('Error', 'Error de conexión', 'error');
+        }
+      }
+    });
+  }
+  
+  const btnRechazarInscripcion = document.getElementById('btnRechazarInscripcion');
+  if (btnRechazarInscripcion) {
+    btnRechazarInscripcion.addEventListener('click', async () => {
+      const entidadId = obtenerEntidadSeleccionadaId();
+      if (!entidadId) {
+        Swal.fire('Error', 'No hay entidad seleccionada', 'error');
+        return;
+      }
+      
+      const { value: observaciones } = await Swal.fire({
+        title: 'Rechazar Inscripción',
+        input: 'textarea',
+        inputLabel: 'Motivo del rechazo (obligatorio)',
+        inputPlaceholder: 'Ingrese el motivo del rechazo...',
+        showCancelButton: true,
+        confirmButtonText: 'Rechazar',
+        cancelButtonText: 'Cancelar',
+        inputValidator: (value) => {
+          if (!value || !value.trim()) {
+            return 'Debe ingresar el motivo del rechazo';
+          }
+        }
+      });
+      
+      if (observaciones) {
+        try {
+          const currentUser = localStorage.getItem('currentUser') || 'Usuario';
+          const response = await fetch(`${API_BASE_URL}RechazarInscripcion`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              entidadId: parseInt(entidadId),
+              observaciones: observaciones.trim(),
+              usuario: currentUser
+            })
+          });
+          
+          if (response.ok) {
+            Swal.fire('Éxito', 'Inscripción rechazada correctamente', 'success');
+            // Resetear formulario
+            if (buscarEntidad) buscarEntidad.value = '';
+            if (selectEntidad) selectEntidad.classList.add('d-none');
+            limpiarDetalles();
+          } else {
+            const errorText = await response.text();
+            Swal.fire('Error', errorText || 'No se pudo rechazar la inscripción', 'error');
           }
         } catch (error) {
           Swal.fire('Error', 'Error de conexión', 'error');

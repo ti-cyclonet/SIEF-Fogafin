@@ -648,7 +648,7 @@ BEGIN TRANSACTION;
 
 UPDATE [SistemasComunes].[dbo].[TM14_PerfilesAplicacion]
 SET
-    [TM14_Perfil] = 'DOT',
+    [TM14_Perfil] = 'Profesional DOT',
     [TM14_Descripcion] = 'Perfil encargado de la aprobación de solicitudes, consulta de trámites, edición de información y cargue de documentos'
 WHERE
     [TM14_TM01_Codigo] = '17'
@@ -672,3 +672,12 @@ WHERE
 
 -- Si deseas revertir los cambios por algún error, usa la siguiente línea:
 -- ROLLBACK TRANSACTION;
+
+
+-- ACTUALIZA MANUALMENTE EL PERFIL DE UN 
+-- ***************************************************************
+UPDATE [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
+SET TM15_TM14_Perfil = 'Profesional DOT'
+WHERE TM15_TM04_Identificacion = 'AlfredoMamby' 
+  AND TM15_TM12_TM01_Codigo = 17 
+  AND TM15_TM12_Ambiente = 'PRODUCCION';

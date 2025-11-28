@@ -28,9 +28,9 @@ namespace InscripcionEntidades
                 {
                     JsonElement root = doc.RootElement;
                     
-                    int entidadId = root.TryGetProperty("EntidadId", out var entidadIdProp) ? entidadIdProp.GetInt32() : 0;
-                    string numeroTramite = root.TryGetProperty("NumeroTramite", out var numeroTramiteProp) ? numeroTramiteProp.GetString() ?? "" : "";
-                    string funcionario = root.TryGetProperty("Funcionario", out var funcionarioProp) ? funcionarioProp.GetString() ?? "" : "";
+                    int entidadId = root.TryGetProperty("entidadId", out var entidadIdProp) ? entidadIdProp.GetInt32() : 0;
+                    string observaciones = root.TryGetProperty("observaciones", out var observacionesProp) ? observacionesProp.GetString() ?? "" : "";
+                    string usuario = root.TryGetProperty("usuario", out var usuarioProp) ? usuarioProp.GetString() ?? "" : "";
 
                     string connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
 
@@ -38,9 +38,15 @@ namespace InscripcionEntidades
                     {
                         await connection.OpenAsync();
 
-                        // Obtener RazonSocial y estado anterior
-                        string getInfoQuery = "SELECT TM02_NOMBRE, TM02_TM01_CODIGO FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] WHERE TM02_CODIGO = @entidadId";
+                        // Obtener RazonSocial, estado anterior y número de trámite
+                        string getInfoQuery = @"
+                            SELECT e.TM02_NOMBRE, e.TM02_TM01_CODIGO, 
+                                   CONCAT(c.TM08_Consecutivo, c.TM08_TM01_Codigo, c.TM08_Ano) AS NumeroTramite
+                            FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] e
+                            LEFT JOIN [SIIR-ProdV1].[dbo].[TM08_ConsecutivoEnt] c ON e.TM02_TM08_Consecutivo = c.TM08_Consecutivo
+                            WHERE e.TM02_CODIGO = @entidadId";
                         string razonSocial = "";
+                        string numeroTramite = "";
                         int estadoAnterior = 0;
 
                         using (var command = new SqlCommand(getInfoQuery, connection))
@@ -51,6 +57,7 @@ namespace InscripcionEntidades
                                 if (await reader.ReadAsync())
                                 {
                                     razonSocial = reader["TM02_NOMBRE"]?.ToString() ?? "";
+                                    numeroTramite = reader["NumeroTramite"]?.ToString() ?? "";
                                     estadoAnterior = reader["TM02_TM01_CODIGO"] != DBNull.Value ? Convert.ToInt32(reader["TM02_TM01_CODIGO"]) : 0;
                                 }
                             }
@@ -121,28 +128,7 @@ PBX: 601 4321370 extensiones 255 - 142";
                         }
 
                         // Validar usuario
-                        string usuarioFinal;
-                        if (funcionario == "AdminSief")
-                        {
-                            usuarioFinal = "USUARIOWEB";
-                        }
-                        else
-                        {
-                            // Verificar si el usuario existe en TM03_Usuario
-                            string checkUserQuery = "SELECT COUNT(*) FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] WHERE TM03_Usuario = @usuario";
-                            using (var checkCmd = new SqlCommand(checkUserQuery, connection))
-                            {
-                                checkCmd.Parameters.AddWithValue("@usuario", funcionario);
-                                int userExists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
-                                if (userExists == 0)
-                                {
-                                    var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                                    await errorResponse.WriteStringAsync($"El usuario '{funcionario}' no existe en el sistema");
-                                    return errorResponse;
-                                }
-                            }
-                            usuarioFinal = funcionario;
-                        }
+                        string usuarioFinal = usuario.ToLower() == "adminsief" ? "USUARIOWEB" : usuario;
 
                         // Cambiar estado a "En validación del pago" (código 13)
                         string updateQuery = @"
@@ -157,16 +143,21 @@ PBX: 601 4321370 extensiones 255 - 142";
                         }
 
                         // Siempre registrar en histórico de estados
+                        string observacionesCompletas = string.IsNullOrWhiteSpace(observaciones) 
+                            ? "Aprobación de documentos - Cambio a validación de pago" 
+                            : $"Aprobación de documentos: {observaciones}";
+                            
                         string insertHistoricoQuery = @"
                             INSERT INTO [SIIR-ProdV1].[dbo].[TN05_Historico_Estado]
                             (TN05_TM02_Tipo, TN05_TM02_Codigo, TN05_TM01_EstadoAnterior, TN05_TM01_EstadoActual, TN05_Fecha, TN05_TN03_Usuario, TN05_Observaciones)
-                            VALUES (1, @entidadId, @estadoAnterior, 13, GETDATE(), @usuario, 'Aprobación de documentos - Cambio a validación de pago')";
+                            VALUES (1, @entidadId, @estadoAnterior, 13, GETDATE(), @usuario, @observaciones)";
 
                         using (var command2 = new SqlCommand(insertHistoricoQuery, connection))
                         {
                             command2.Parameters.AddWithValue("@entidadId", entidadId);
                             command2.Parameters.AddWithValue("@estadoAnterior", estadoAnterior);
                             command2.Parameters.AddWithValue("@usuario", usuarioFinal);
+                            command2.Parameters.AddWithValue("@observaciones", observacionesCompletas);
                             await command2.ExecuteNonQueryAsync();
                         }
 
