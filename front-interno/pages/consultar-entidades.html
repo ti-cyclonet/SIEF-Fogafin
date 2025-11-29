@@ -725,7 +725,7 @@
             <td>${entidad.CapitalSuscrito ? formatearMoneda(entidad.CapitalSuscrito) : '-'}</td>
             <td>${entidad.ValorPagado ? formatearMonedaConDecimales(entidad.ValorPagado) : '-'}</td>
             <td>${entidad.FechaPago ? new Date(entidad.FechaPago).toLocaleDateString('es-CO') : '-'}</td>
-            <td><span class="badge bg-${obtenerColorEstado(entidad.EstadoNombre)}">${entidad.EstadoNombre || '-'}</span></td>
+            <td><span class="badge bg-${obtenerColorEstado(entidad.EstadoNombre)}">${entidad.EstadoNombre === 'Sin estado' ? 'Migrado' : (entidad.EstadoNombre || '-')}</span></td>
           `;
           tbody.appendChild(fila);
         });
@@ -801,8 +801,15 @@
         const colores = {
           'Inscrita': 'success',
           'Rechazada': 'danger',
-          'En revisión': 'warning',
-          'Pendiente': 'secondary'
+          'En validación de documentos': 'warning',
+          'Pendiente de aprobación final': 'info',
+          'Confirmación de pago': 'primary',
+          'En revisión': 'secondary',
+          'Pendiente': 'light',
+          'Aprobada': 'success',
+          'Cancelada': 'dark',
+          'Sin estado': 'secondary',
+          'Migrado': 'secondary'
         };
         return colores[estado] || 'primary';
       }
