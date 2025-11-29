@@ -1,0 +1,54 @@
+# 🔐 ARCHIVOS CON CREDENCIALES Y CONFIGURACIÓN SENSIBLE
+**/local.settings.json
+**/config.js
+**/database.php
+**/*.publishsettings
+**/.env
+**/.env.*
+
+# 🏗️ ARCHIVOS DE BUILD Y COMPILACIÓN
+**/bin/
+**/obj/
+**/publish/
+**/backup/
+**/*.dll
+**/*.exe
+**/*.pdb
+**/*.zip
+**/node_modules/
+**/dist/
+**/build/
+
+# 📦 DEPENDENCIAS Y PAQUETES
+**/packages/
+**/.nuget/
+**/package-lock.json
+**/yarn.lock
+
+# 🔧 ARCHIVOS DE DESARROLLO
+**/*.user
+**/*.suo
+**/*.cache
+**/project.lock.json
+**/project.fragment.lock.json
+**/artifacts/
+**/.vs/
+**/.vscode/settings.json
+
+# 📝 LOGS Y TEMPORALES
+**/*.log
+**/logs/
+**/tmp/
+**/temp/
+
+# 🖥️ ARCHIVOS DEL SISTEMA
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# 🔄 ARCHIVOS DE RESPALDO
+**/*.bak
+**/*.backup
+**/*.old

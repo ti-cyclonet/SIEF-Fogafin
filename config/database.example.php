@@ -1,9 +1,11 @@
 <?php
-// Configuración de conexión a base de datos
-$serverName = "TU_SERVIDOR_SQL";
-$database = "TU_BASE_DATOS";
-$username = "TU_USUARIO";
-$password = "TU_PASSWORD";
+// 🔧 CONFIGURACIÓN DE CONEXIÓN A BASE DE DATOS - PLANTILLA
+// Copiar este archivo como database.php y configurar con valores reales
+
+$serverName = getenv('DB_SERVER') ?: "TU_SERVIDOR_SQL";
+$database = getenv('DB_NAME') ?: "TU_BASE_DATOS";
+$username = getenv('DB_USER') ?: "TU_USUARIO";
+$password = getenv('DB_PASSWORD') ?: "TU_PASSWORD";
 
 $connectionInfo = array(
     "Database" => $database,
