@@ -72,6 +72,35 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="./config.js"></script>
     <script>
+      // Utilidad para autenticación de Windows
+      class WindowsAuth {
+        static async obtenerUsuarioWindows() {
+          try {
+            const response = await fetch(getApiUrl('whoami'), {
+              method: 'GET',
+              credentials: 'include'
+            });
+            
+            if (response.ok) {
+              const usuario = await response.text();
+              return usuario.trim();
+            }
+          } catch (error) {
+            console.warn('Error obteniendo usuario Windows:', error);
+          }
+          return 'adminSief';
+        }
+
+        static async intentarLoginAutomatico() {
+          const usuario = await this.obtenerUsuarioWindows();
+          if (usuario && usuario !== 'adminSief') {
+            return await validarUsuarioResponsable(usuario);
+          }
+          return null;
+        }
+      }
+    </script>
+    <script>
       // Variables de control
       let modoAutomatico = true;
       
@@ -83,9 +112,39 @@
       
       // Usar función del config.js
       
-      // Obtener usuario del backend
+      // Obtener usuario del backend e intentar login automático
       document.addEventListener('DOMContentLoaded', async function() {
         try {
+          // Verificar si se debe omitir login automático
+          const params = new URLSearchParams(window.location.search);
+          const omitirAuto = params.get('manual') === 'true' || localStorage.getItem('skipAutoLogin') === 'true';
+          
+          // Limpiar bandera de omitir login automático
+          if (localStorage.getItem('skipAutoLogin')) {
+            localStorage.removeItem('skipAutoLogin');
+          }
+          
+          // Intentar login automático primero (si no está deshabilitado)
+          const loginAutomatico = omitirAuto ? null : await WindowsAuth.intentarLoginAutomatico();
+          
+          if (loginAutomatico && loginAutomatico.esValido) {
+            // Login automático exitoso
+            const usuario = await WindowsAuth.obtenerUsuarioWindows();
+            localStorage.setItem("currentUser", usuario);
+            if (loginAutomatico.codigoArea) {
+              localStorage.setItem("userArea", loginAutomatico.codigoArea);
+              localStorage.setItem("userAreaName", loginAutomatico.nombreArea);
+            }
+            if (loginAutomatico.perfil) {
+              localStorage.setItem("userPerfil", loginAutomatico.perfil);
+            }
+            
+            // Redireccionar directamente al dashboard
+            window.location.href = "pages/dashboard.html";
+            return;
+          }
+          
+          // Si no hay login automático, mostrar formulario con usuario obtenido
           const response = await fetch(getApiUrl('whoami'));
           if (response.ok) {
             const usuario = await response.text();
@@ -96,7 +155,7 @@
             inputUsuario.style.backgroundColor = '#f8f9fa';
           }
         } catch (error) {
-          // Silencioso - no mostrar errores en consola
+          // Silencioso - mostrar formulario normal
         }
         
         // Evento para alternar modo de edición

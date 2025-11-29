@@ -229,13 +229,14 @@
                 localStorage.removeItem('userAreaName');
                 localStorage.removeItem('userRole');
                 localStorage.removeItem('userPerfil');
+                localStorage.setItem('skipAutoLogin', 'true');
                 Swal.fire({
                     title: "Cerrando Sesión...",
                     icon: 'info',
                     showConfirmButton: false,
                     timer: 800,
                     willClose: () => {
-                        window.location.href = '../index.html';
+                        window.location.href = '../index.html?manual=true';
                     }
                 });
             });

@@ -24,24 +24,49 @@ namespace InscripcionEntidades
             try
             {
                 string usuario = "adminSief";
+                bool esAzure = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"));
 
-                // Obtener usuario de Windows Identity (método que funciona)
-                try
+                // Intentar obtener usuario desde cabeceras de autenticación integrada
+                if (req.Headers.TryGetValues("Authorization", out var authHeaders))
                 {
-                    var identity = WindowsIdentity.GetCurrent();
-                    if (identity != null && !string.IsNullOrEmpty(identity.Name))
+                    var authHeader = authHeaders.FirstOrDefault();
+                    if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Negotiate"))
                     {
-                        usuario = identity.Name;
-                        if (usuario.Contains("\\"))
-                        {
-                            usuario = usuario.Split('\\').Last();
-                        }
-                        _logger.LogInformation($"Usuario obtenido: {usuario}");
+                        // Procesar token de autenticación integrada (simplificado)
+                        _logger.LogInformation("Autenticación integrada detectada");
                     }
                 }
-                catch (Exception ex)
+
+                // Verificar cabecera personalizada del usuario
+                if (req.Headers.TryGetValues("X-User-Identity", out var userHeaders))
                 {
-                    _logger.LogWarning($"Usando usuario por defecto: {ex.Message}");
+                    var userFromHeader = userHeaders.FirstOrDefault();
+                    if (!string.IsNullOrEmpty(userFromHeader))
+                    {
+                        usuario = userFromHeader.Contains("\\") ? userFromHeader.Split('\\').Last() : userFromHeader;
+                        _logger.LogInformation($"Usuario desde cabecera: {usuario}");
+                    }
+                }
+                else if (esAzure)
+                {
+                    usuario = Environment.GetEnvironmentVariable("SIEF_USER") ?? "adminSief";
+                    _logger.LogInformation($"Entorno Azure - Usuario configurado: {usuario}");
+                }
+                else
+                {
+                    try
+                    {
+                        var identity = WindowsIdentity.GetCurrent();
+                        if (identity != null && !string.IsNullOrEmpty(identity.Name))
+                        {
+                            usuario = identity.Name.Contains("\\") ? identity.Name.Split('\\').Last() : identity.Name;
+                            _logger.LogInformation($"Usuario local obtenido: {usuario}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"Error obteniendo usuario local: {ex.Message}");
+                    }
                 }
 
                 var response = req.CreateResponse(HttpStatusCode.OK);
