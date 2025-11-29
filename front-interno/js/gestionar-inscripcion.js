@@ -18,16 +18,12 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function loadEntidadesGestionables() {
-  const userArea = localStorage.getItem('userArea');
   const userPerfil = localStorage.getItem('userPerfil');
-  const isDOT = userArea === '52050';
   const isDOTProfile = userPerfil === 'Profesional DOT';
   
   let estadosGestionables;
   if (isDOTProfile) {
     estadosGestionables = "13"; // Solo estado 13 para perfil DOT
-  } else if (isDOT) {
-    estadosGestionables = "13"; // Solo estado 13 para área DOT
   } else {
     estadosGestionables = "12,13,14"; // Todos los estados para otros perfiles
   }
@@ -377,23 +373,11 @@ function limpiarDetalles() {
 }
 
 function controlarEditabilidadInformacionGeneral() {
-  const userArea = localStorage.getItem('userArea');
   const userName = localStorage.getItem('currentUser');
   const isAdmin = userName && userName.toLowerCase() === 'adminsief';
-  const isDOT = userArea === '52050';
-  const isSSD = userArea === '59030';
-  
-  if (isDOT) {
-    const btnAprobarDocumentos = document.getElementById('btnAprobarDocumentos');
-    const btnAprobarInscripcion = document.getElementById('btnAprobarInscripcion');
-    const btnRechazarInscripcion = document.getElementById('btnRechazarInscripcion');
-    if (btnAprobarDocumentos) btnAprobarDocumentos.style.display = 'none';
-    if (btnAprobarInscripcion) btnAprobarInscripcion.style.display = 'none';
-    if (btnRechazarInscripcion) btnRechazarInscripcion.style.display = 'none';
-  }
-  
-  // Mostrar botones de pago solo para DOT y AdminSief
   const userPerfil = localStorage.getItem('userPerfil');
+  
+  // Mostrar botones de pago solo para perfil DOT y AdminSief
   const isDOTProfile = userPerfil === 'Profesional DOT';
   const showPaymentButtons = isAdmin || isDOTProfile;
   
@@ -405,28 +389,22 @@ function controlarEditabilidadInformacionGeneral() {
   if (btnConfirmarPago) btnConfirmarPago.style.display = showPaymentButtons ? 'inline-block' : 'none';
   if (btnCancelarPago) btnCancelarPago.style.display = showPaymentButtons ? 'inline-block' : 'none';
   
-  if (isSSD && !isAdmin) {
-    const userPerfil = localStorage.getItem('userPerfil');
-    const isJefeSSD = userPerfil === 'Jefe SSD';
-    
-    if (!isJefeSSD) {
-      const btnAprobarInscripcion = document.getElementById('btnAprobarInscripcion');
-      if (btnAprobarInscripcion) btnAprobarInscripcion.style.display = 'none';
-    }
+  // Controles para Jefe SSD
+  const isJefeSSD = userPerfil === 'Jefe SSD';
+  
+  if (!isAdmin && !isJefeSSD) {
+    const btnAprobarInscripcion = document.getElementById('btnAprobarInscripcion');
+    if (btnAprobarInscripcion) btnAprobarInscripcion.style.display = 'none';
   }
   
-  if (isSSD && !isAdmin) {
-    const userPerfil = localStorage.getItem('userPerfil');
-    const isJefeSSD = userPerfil === 'Jefe SSD';
-    
+  if (!isAdmin && !isJefeSSD) {
     const btnModificarCapital = document.getElementById('btnModificarCapital');
     const filaArchivosAdicionales = document.getElementById('filaArchivosAdicionales');
-    const documentosAdicionalesPagoWrapper = document.getElementById('documentosAdicionalesPagoWrapper');
-    
-    if (!isJefeSSD && btnModificarCapital) btnModificarCapital.style.display = 'none';
-    if (!isJefeSSD && filaArchivosAdicionales) filaArchivosAdicionales.style.display = 'none';
     const filaArchivosAdicionalesPago = document.getElementById('filaArchivosAdicionalesPago');
-    if (!isJefeSSD && filaArchivosAdicionalesPago) filaArchivosAdicionalesPago.style.display = 'none';
+    
+    if (btnModificarCapital) btnModificarCapital.style.display = 'none';
+    if (filaArchivosAdicionales) filaArchivosAdicionales.style.display = 'none';
+    if (filaArchivosAdicionalesPago) filaArchivosAdicionalesPago.style.display = 'none';
   }
 }
 

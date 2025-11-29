@@ -187,11 +187,7 @@
                 
                 // Controlar acceso a opciones del menú
                 const isAdmin = userName.toLowerCase() === 'adminsief';
-                const isSSD = userArea === '59030';
-                const isDOT = userArea === '52050';
-                const isDIF = userArea === '52060';
-                const isDGC = userArea === '52070';
-                const isJefeSSD = isSSD && (userPerfil === 'Jefe SSD' || userRole === 'Jefe');
+                const isJefeSSD = userPerfil === 'Jefe SSD';
                 const isConsulta = userPerfil === 'Consulta';
                 
                 const tileGestionarInscripcion = document.getElementById('tileGestionarInscripcion');
@@ -206,11 +202,6 @@
                     const menuContainer = document.getElementById('menuContainer');
                     menuContainer.classList.remove('row-cols-md-2');
                     menuContainer.classList.add('justify-content-center');
-                }
-                // Para otros usuarios que no son admin ni de áreas autorizadas
-                else if (!isAdmin && !isSSD && !isDOT && !isDIF && !isDGC) {
-                    if (tileGestionarInscripcion) tileGestionarInscripcion.querySelector('.tile').classList.add('tile-disabled');
-                    if (tileConsultarEntidades) tileConsultarEntidades.querySelector('.tile').classList.add('tile-disabled');
                 }
                 
                 // Gestión de usuarios solo para admin y jefe SSD

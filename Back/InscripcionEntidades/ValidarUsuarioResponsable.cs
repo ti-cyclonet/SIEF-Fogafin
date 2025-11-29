@@ -71,9 +71,9 @@ namespace InscripcionEntidades
                     await connection.OpenAsync();
 
                     string query = @"
-                        SELECT r.TM04_TM03_Codigo, a.TM02_Nombre, c.TM15_TM14_Perfil
+                        SELECT r.TM04_TM03_Codigo, ISNULL(a.TM02_Nombre, 'SIEF') as TM02_Nombre, c.TM15_TM14_Perfil
                         FROM [SistemasComunes].[dbo].[TM04_Responsables] r
-                        INNER JOIN [SIIR-ProdV1].[dbo].[TM02_Area] a ON r.TM04_TM03_Codigo = a.TM02_Codigo
+                        LEFT JOIN [SIIR-ProdV1].[dbo].[TM02_Area] a ON r.TM04_TM03_Codigo = a.TM02_Codigo
                         INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
                         WHERE r.TM04_Identificacion = @usuario 
                         AND r.TM04_Activo = 1
