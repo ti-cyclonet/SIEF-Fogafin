@@ -116,12 +116,11 @@
                 <th>Pago inscripción</th>
                 <th>Fecha de pago</th>
                 <th>Estado del trámite</th>
-                <th>Acciones</th>
               </tr>
             </thead>
             <tbody id="tablaEntidadesBody">
               <tr>
-                <td colspan="12" class="text-center text-muted py-4">
+                <td colspan="11" class="text-center text-muted py-4">
                   <i class="fas fa-spinner fa-spin me-2"></i>Cargando entidades...
                 </td>
               </tr>
@@ -677,7 +676,7 @@
           mostrarEntidadesPaginadas();
         } catch (error) {
           console.error('Error al cargar entidades:', error);
-          tbody.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">Error al cargar las entidades</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-4">Error al cargar las entidades</td></tr>';
         }
       }
 
@@ -707,7 +706,7 @@
         const entidadesPagina = entidadesFiltradas.slice(inicio, fin);
 
         if (entidadesPagina.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">No se encontraron entidades con los filtros aplicados</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">No se encontraron entidades con los filtros aplicados</td></tr>';
           generarPaginacion(0);
           return;
         }
@@ -727,11 +726,6 @@
             <td>${entidad.ValorPagado ? formatearMonedaConDecimales(entidad.ValorPagado) : '-'}</td>
             <td>${entidad.FechaPago ? new Date(entidad.FechaPago).toLocaleDateString('es-CO') : '-'}</td>
             <td><span class="badge bg-${obtenerColorEstado(entidad.EstadoNombre)}">${entidad.EstadoNombre || '-'}</span></td>
-            <td>
-              <button class="btn btn-sm btn-outline-primary" onclick="verDetalleEntidad(${entidad.Id})">
-                <i class="fas fa-eye"></i>
-              </button>
-            </td>
           `;
           tbody.appendChild(fila);
         });
