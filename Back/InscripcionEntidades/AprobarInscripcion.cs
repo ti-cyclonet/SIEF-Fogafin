@@ -28,9 +28,9 @@ namespace InscripcionEntidades
                 {
                     JsonElement root = doc.RootElement;
                     
-                    int entidadId = root.TryGetProperty("EntidadId", out var entidadIdProp) ? entidadIdProp.GetInt32() : 0;
-                    string numeroTramite = root.TryGetProperty("NumeroTramite", out var numeroTramiteProp) ? numeroTramiteProp.GetString() ?? "" : "";
-                    string funcionario = root.TryGetProperty("Funcionario", out var funcionarioProp) ? funcionarioProp.GetString() ?? "" : "";
+                    int entidadId = root.TryGetProperty("entidadId", out var entidadIdProp) ? entidadIdProp.GetInt32() : 0;
+                    string funcionario = root.TryGetProperty("usuario", out var usuarioProp) ? usuarioProp.GetString() ?? "Sistema" : "Sistema";
+                    _logger.LogInformation($"Usuario recibido: {funcionario}");
 
                     string connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
 
@@ -88,29 +88,8 @@ namespace InscripcionEntidades
                             await command.ExecuteNonQueryAsync();
                         }
                         
-                        // Validar usuario
-                        string usuarioFinal;
-                        if (funcionario == "AdminSief")
-                        {
-                            usuarioFinal = "USUARIOWEB";
-                        }
-                        else
-                        {
-                            // Verificar si el usuario existe en TM03_Usuario
-                            string checkUserQuery = "SELECT COUNT(*) FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] WHERE TM03_Usuario = @usuario";
-                            using (var checkCmd = new SqlCommand(checkUserQuery, connection))
-                            {
-                                checkCmd.Parameters.AddWithValue("@usuario", funcionario);
-                                int userExists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
-                                if (userExists == 0)
-                                {
-                                    var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                                    await errorResponse.WriteStringAsync($"El usuario '{funcionario}' no existe en el sistema");
-                                    return errorResponse;
-                                }
-                            }
-                            usuarioFinal = funcionario;
-                        }
+                        // Usar el usuario recibido directamente
+                        string usuarioFinal = string.IsNullOrEmpty(funcionario) ? "Sistema" : funcionario;
 
                         // Siempre registrar en histórico
                         string insertHistoricoQuery = @"

@@ -407,6 +407,7 @@ function actualizarBotonesGestion(estadoNombre, estadoId) {
   const btnAprobarInscripcion = document.getElementById('btnAprobarInscripcion');
   const btnRechazarInscripcion = document.getElementById('btnRechazarInscripcion');
   const btnAdjuntarArchivo = document.getElementById('btnAdjuntarArchivo');
+  const btnModificarCapital = document.getElementById('btnModificarCapital');
   
   // Aprobar documentos solo habilitado para estado 12 (En validación de documentos)
   if (btnAprobarDocumentos) {
@@ -418,20 +419,43 @@ function actualizarBotonesGestion(estadoNombre, estadoId) {
     btnAprobarInscripcion.disabled = estadoId !== 14;
   }
   
-  // Botón adjuntar archivo y leyenda solo visible para estado 12 (En validación de documentos)
-  if (btnAdjuntarArchivo) {
-    btnAdjuntarArchivo.style.display = estadoId === 12 ? 'inline-block' : 'none';
-  }
-  
-  const filaArchivosAdicionales = document.getElementById('filaArchivosAdicionales');
-  if (filaArchivosAdicionales) {
-    const leyendaFormatos = filaArchivosAdicionales.querySelector('.form-text');
-    if (leyendaFormatos) {
-      leyendaFormatos.style.display = estadoId === 12 ? 'block' : 'none';
+  // Para estado 14 (Pendiente de aprobación final): ocultar elementos específicos
+  if (estadoId === 14) {
+    if (btnModificarCapital) btnModificarCapital.style.display = 'none';
+    if (btnAdjuntarArchivo) btnAdjuntarArchivo.style.display = 'none';
+    if (btnRechazarInscripcion) btnRechazarInscripcion.disabled = true;
+    
+    // Ocultar botón y leyenda en pestaña "Información de la inscripción y pago"
+    const btnAdjuntarArchivoPago = document.getElementById('btnAdjuntarArchivoPago');
+    if (btnAdjuntarArchivoPago) btnAdjuntarArchivoPago.style.display = 'none';
+    
+    const filaArchivosAdicionales = document.getElementById('filaArchivosAdicionales');
+    if (filaArchivosAdicionales) {
+      const leyendaFormatos = filaArchivosAdicionales.querySelector('.form-text');
+      if (leyendaFormatos) leyendaFormatos.style.display = 'none';
     }
+    
+    const filaArchivosAdicionalesPago = document.getElementById('filaArchivosAdicionalesPago');
+    if (filaArchivosAdicionalesPago) {
+      const leyendaFormatosPago = filaArchivosAdicionalesPago.querySelector('.form-text');
+      if (leyendaFormatosPago) leyendaFormatosPago.style.display = 'none';
+    }
+  } else {
+    // Botón adjuntar archivo y leyenda solo visible para estado 12 (En validación de documentos)
+    if (btnAdjuntarArchivo) {
+      btnAdjuntarArchivo.style.display = estadoId === 12 ? 'inline-block' : 'none';
+    }
+    
+    const filaArchivosAdicionales = document.getElementById('filaArchivosAdicionales');
+    if (filaArchivosAdicionales) {
+      const leyendaFormatos = filaArchivosAdicionales.querySelector('.form-text');
+      if (leyendaFormatos) {
+        leyendaFormatos.style.display = estadoId === 12 ? 'block' : 'none';
+      }
+    }
+    
+    if (btnRechazarInscripcion) btnRechazarInscripcion.disabled = false;
   }
-  
-  if (btnRechazarInscripcion) btnRechazarInscripcion.disabled = false;
 }
 
 function limpiarDetalles() {
@@ -481,15 +505,16 @@ function controlarEditabilidadInformacionGeneral() {
   if (btnConfirmarPago) btnConfirmarPago.style.display = showPaymentButtons ? 'inline-block' : 'none';
   if (btnCancelarPago) btnCancelarPago.style.display = 'none';
   
-  // Controles para Jefe SSD
+  // Controles para SSD
   const isJefeSSD = userPerfil === 'Jefe SSD';
+  const isProfesionalSSD = userPerfil === 'Profesional SSD';
   
-  if (!isAdmin && !isJefeSSD) {
+  if (!isAdmin && !isJefeSSD && !isProfesionalSSD) {
     const btnAprobarInscripcion = document.getElementById('btnAprobarInscripcion');
     if (btnAprobarInscripcion) btnAprobarInscripcion.style.display = 'none';
   }
   
-  if (!isAdmin && !isJefeSSD && !isDOTProfile) {
+  if (!isAdmin && !isJefeSSD && !isDOTProfile && !isProfesionalSSD) {
     const btnModificarCapital = document.getElementById('btnModificarCapital');
     const filaArchivosAdicionales = document.getElementById('filaArchivosAdicionales');
     const filaArchivosAdicionalesPago = document.getElementById('filaArchivosAdicionalesPago');
@@ -826,6 +851,54 @@ function setupEventListeners() {
         } else {
           const errorText = await response.text();
           Swal.fire('Error', errorText || 'No se pudieron aprobar los documentos', 'error');
+        }
+      } catch (error) {
+        Swal.fire('Error', 'Error de conexión', 'error');
+      }
+    });
+  }
+  
+  const btnAprobarInscripcion = document.getElementById('btnAprobarInscripcion');
+  if (btnAprobarInscripcion) {
+    btnAprobarInscripcion.addEventListener('click', async () => {
+      const entidadId = obtenerEntidadSeleccionadaId();
+      if (!entidadId) {
+        Swal.fire('Error', 'No hay entidad seleccionada', 'error');
+        return;
+      }
+      
+      const confirmResult = await Swal.fire({
+        title: '¿Está seguro de aprobar la inscripción?',
+        showCancelButton: true,
+        confirmButtonText: 'Sí',
+        cancelButtonText: 'Cancelar'
+      });
+      
+      if (!confirmResult.isConfirmed) return;
+      
+      try {
+        const currentUser = localStorage.getItem('currentUser') || 'Usuario';
+        const response = await fetch(`${API_BASE_URL}AprobarInscripcion`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            entidadId: parseInt(entidadId),
+            usuario: currentUser
+          })
+        });
+        
+        if (response.ok) {
+          Swal.fire({
+            title: 'Éxito',
+            text: 'Inscripción aprobada correctamente',
+            icon: 'success',
+            confirmButtonText: 'Cerrar'
+          }).then(() => {
+            location.reload();
+          });
+        } else {
+          const errorText = await response.text();
+          Swal.fire('Error', errorText || 'No se pudo aprobar la inscripción', 'error');
         }
       } catch (error) {
         Swal.fire('Error', 'Error de conexión', 'error');
