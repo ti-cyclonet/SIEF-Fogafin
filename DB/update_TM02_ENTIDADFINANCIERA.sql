@@ -681,3 +681,47 @@ SET TM15_TM14_Perfil = 'Profesional DOT'
 WHERE TM15_TM04_Identificacion = 'AlfredoMamby' 
   AND TM15_TM12_TM01_Codigo = 17 
   AND TM15_TM12_Ambiente = 'PRODUCCION';
+
+
+  -- Script para eliminar el Foreign Key constraint FK_TN05_Historico_Estado_TM03_Usuario
+USE [SIIR-ProdV1]
+GO
+
+-- Eliminar el constraint de foreign key
+ALTER TABLE [dbo].[TN05_Historico_Estado] 
+DROP CONSTRAINT [FK_TN05_Historico_Estado_TM03_Usuario]
+GO
+
+PRINT 'Foreign Key constraint FK_TN05_Historico_Estado_TM03_Usuario eliminado exitosamente'
+
+
+
+USE [SIIR-ProdV1];
+GO
+
+-- 1. Crear la tabla de la entidad Extracto de Pago
+CREATE TABLE [dbo].[TN09_Extractos] (
+    -- Clave Primaria
+    [TN09_Id] INT IDENTITY(1,1) NOT NULL,
+
+    -- Campos de la Modal
+    [TN09_Fecha] DATE NOT NULL,
+    [TN09_Valor] DECIMAL(19, 2) NOT NULL,
+
+    -- Relación al Archivo Físico
+    [TN09_TN07_Id] INT NOT NULL,
+
+    -- Campos de Auditoría
+    [TN09_FechaCarga] DATETIME NOT NULL DEFAULT GETDATE(),
+
+    -- Restricciones
+    CONSTRAINT PK_TN09_Extractos PRIMARY KEY CLUSTERED ([TN09_Id] ASC),
+
+    -- Unicidad: Un archivo adjunto solo puede ser un extracto una vez
+    CONSTRAINT UQ_TN09_TN07_Id UNIQUE ([TN09_TN07_Id]),
+
+    -- Clave Foránea al Archivo Adjunto (TN07)
+    CONSTRAINT FK_TN09_Extractos_TN07 FOREIGN KEY ([TN09_TN07_Id])
+        REFERENCES [dbo].[TN07_Adjuntos] ([TN07_Id])
+);
+GO

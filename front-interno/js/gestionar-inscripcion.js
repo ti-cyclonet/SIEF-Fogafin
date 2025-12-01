@@ -133,10 +133,41 @@ async function cargarDetalleEntidad(entidadId, entidadData = {}) {
   }
 }
 
-function cargarComprobanteInicial(detalle) {
+async function cargarComprobanteInicial(detalle) {
   const tabla = document.querySelector('#tablaPagos tbody');
   if (!tabla) return;
   tabla.innerHTML = '';
+  
+  if (detalle.id) {
+    await cargarPagosExistentes(detalle.id);
+  }
+}
+
+async function cargarPagosExistentes(entidadId) {
+  const tabla = document.querySelector('#tablaPagos tbody');
+  if (!tabla || !entidadId) return;
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}ConsultarPagosEntidad?entidadId=${entidadId}`);
+    if (!response.ok) return;
+    
+    const extractos = await response.json();
+    
+    extractos.forEach(extracto => {
+      const newRow = document.createElement('tr');
+      const fecha = new Date(extracto.fecha).toLocaleDateString('es-CO');
+      const valor = formatearMonedaConDecimales(extracto.valor);
+      
+      const linkArchivo = extracto.archivo ? 
+        `<a href="#" class="text-primary" onclick="descargarArchivoDirecto('${extracto.archivo}')">Ver archivo</a>` :
+        'No disponible';
+      
+      newRow.innerHTML = `<td>${fecha}</td><td>${valor}</td><td>${linkArchivo}</td>`;
+      tabla.appendChild(newRow);
+    });
+  } catch (error) {
+    console.error('Error al cargar extractos existentes:', error);
+  }
 }
 
 async function cargarDocumentosAdicionalesPago(entidadId) {
@@ -458,7 +489,7 @@ function controlarEditabilidadInformacionGeneral() {
     if (btnAprobarInscripcion) btnAprobarInscripcion.style.display = 'none';
   }
   
-  if (!isAdmin && !isJefeSSD) {
+  if (!isAdmin && !isJefeSSD && !isDOTProfile) {
     const btnModificarCapital = document.getElementById('btnModificarCapital');
     const filaArchivosAdicionales = document.getElementById('filaArchivosAdicionales');
     const filaArchivosAdicionalesPago = document.getElementById('filaArchivosAdicionalesPago');
@@ -466,6 +497,22 @@ function controlarEditabilidadInformacionGeneral() {
     if (btnModificarCapital) btnModificarCapital.style.display = 'none';
     if (filaArchivosAdicionales) filaArchivosAdicionales.style.display = 'none';
     if (filaArchivosAdicionalesPago) filaArchivosAdicionalesPago.style.display = 'none';
+  }
+  
+  // Ocultar elementos específicos para perfil DOT
+  if (isDOTProfile) {
+    const btnModificarCapital = document.getElementById('btnModificarCapital');
+    const btnAdjuntarArchivoPago = document.getElementById('btnAdjuntarArchivoPago');
+    
+    if (btnModificarCapital) btnModificarCapital.style.display = 'none';
+    if (btnAdjuntarArchivoPago) btnAdjuntarArchivoPago.style.display = 'none';
+    
+    // Ocultar solo la leyenda, mantener visible la sección y tabla
+    const filaArchivosAdicionalesPago = document.getElementById('filaArchivosAdicionalesPago');
+    if (filaArchivosAdicionalesPago) {
+      const leyendaFormatos = filaArchivosAdicionalesPago.querySelector('.form-text');
+      if (leyendaFormatos) leyendaFormatos.style.display = 'none';
+    }
   }
 }
 
@@ -854,11 +901,24 @@ function setupEventListeners() {
     }},
     { id: 'btnConfirmarPago', handler: confirmarPago },
     { id: 'btnAdjuntarComprobante', handler: async () => {
+      // Obtener pagos disponibles
+      const entidadId = obtenerEntidadSeleccionadaId();
+      const detalle = window.currentDetalle;
+      const pagosDisponibles = detalle?.pagos || [];
+      
+      let opcionesPagos = '<option value="">Seleccione el pago...</option>';
+      pagosDisponibles.forEach(pago => {
+        const fecha = new Date(pago.TN06_Fecha).toLocaleDateString('es-CO');
+        const valor = formatearMonedaConDecimales(pago.TN06_Valor);
+        opcionesPagos += `<option value="${pago.TN06_Id}" data-fecha="${pago.TN06_Fecha}" data-valor="${pago.TN06_Valor}">${fecha} - ${valor}</option>`;
+      });
+      
       const { value: formValues } = await Swal.fire({
-        title: 'Adjuntar Comprobante de Pago',
+        title: 'Adjuntar Extracto de Pago',
         html: `
-          <input id="swal-fecha" class="swal2-input" type="date" placeholder="Fecha de pago">
-          <input id="swal-valor" class="swal2-input" type="number" step="0.01" placeholder="Valor">
+          <select id="swal-pago" class="swal2-input">
+            ${opcionesPagos}
+          </select>
           <div class="file-wrapper" id="swal-archivo-wrapper" style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 0.375rem 0.75rem; background-color: #fff; cursor: pointer; min-height: 38px; margin: 0.5rem 0;">
             <span class="text-muted flex-grow-1" id="swal-archivo-text">Ningún archivo seleccionado</span>
             <span class="badge bg-light text-dark">Seleccionar archivo</span>
@@ -886,32 +946,41 @@ function setupEventListeners() {
         confirmButtonText: 'Subir',
         cancelButtonText: 'Cancelar',
         preConfirm: () => {
-          const fecha = document.getElementById('swal-fecha').value;
-          const valor = document.getElementById('swal-valor').value;
+          const pagoSelect = document.getElementById('swal-pago');
+          const pagoId = pagoSelect.value;
           const archivo = document.getElementById('swal-archivo').files[0];
-          if (!fecha || !valor || !archivo) {
-            Swal.showValidationMessage('Todos los campos son obligatorios');
+          if (!pagoId || !archivo) {
+            Swal.showValidationMessage('Debe seleccionar un pago y un archivo');
             return false;
           }
-          return { fecha, valor: parseFloat(valor), archivo };
+          const selectedOption = pagoSelect.options[pagoSelect.selectedIndex];
+          return { 
+            pagoId, 
+            fecha: selectedOption.dataset.fecha,
+            valor: parseFloat(selectedOption.dataset.valor),
+            archivo 
+          };
         }
       });
       
       if (formValues) {
         try {
-          Swal.fire({title: 'Subiendo comprobante...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+          Swal.fire({title: 'Subiendo extracto...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
           
           const entidadId = obtenerEntidadSeleccionadaId();
           const fileBase64 = await convertirArchivoABase64(formValues.archivo);
           
+          const currentUser = localStorage.getItem('currentUser') || 'Usuario';
           const response = await fetch(`${API_BASE_URL}SubirComprobantePago?entidadId=${entidadId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               fechaPago: formValues.fecha,
               valor: formValues.valor,
+              pagoId: formValues.pagoId,
               archivoBase64: fileBase64,
-              nombreArchivo: formValues.archivo.name
+              nombreArchivo: formValues.archivo.name,
+              usuario: currentUser
             })
           });
           
@@ -923,9 +992,9 @@ function setupEventListeners() {
             newRow.innerHTML = `<td>${fecha}</td><td>${valor}</td><td><a href="#" class="text-primary">Ver archivo</a></td>`;
             tabla.appendChild(newRow);
             
-            Swal.fire('Éxito', 'Comprobante subido correctamente', 'success');
+            Swal.fire('Éxito', 'Extracto subido correctamente', 'success');
           } else {
-            Swal.fire('Error', 'No se pudo subir el comprobante', 'error');
+            Swal.fire('Error', 'No se pudo subir el extracto', 'error');
           }
         } catch (error) {
           Swal.fire('Error', 'Error de conexión', 'error');

@@ -133,6 +133,11 @@ namespace InscripcionEntidades
                         }
                     }
                     
+                    // Verificar si el usuario existe, si no usar 'Sistema'
+                    var cmdUsuario = new SqlCommand("SELECT COUNT(*) FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] WHERE TM03_Usuario = @usuario", conn);
+                    cmdUsuario.Parameters.AddWithValue("@usuario", usuario);
+                    var usuarioExiste = (int)await cmdUsuario.ExecuteScalarAsync() > 0;
+                    
                     // Registrar en historial
                     var cmdHistorial = new SqlCommand("INSERT INTO [SIIR-ProdV1].[dbo].[TN05_Historico_Estado] (TN05_TM02_Tipo, TN05_TM02_Codigo, TN05_TM01_EstadoAnterior, TN05_TM01_EstadoActual, TN05_Fecha, TN05_TN03_Usuario, TN05_Observaciones) VALUES (@tipo, @codigo, @estadoAnterior, @estadoActual, @fecha, @usuario, @observaciones)", conn);
                     cmdHistorial.Parameters.AddWithValue("@tipo", tipoHistorial);
@@ -140,7 +145,7 @@ namespace InscripcionEntidades
                     cmdHistorial.Parameters.AddWithValue("@estadoAnterior", estadoActual);
                     cmdHistorial.Parameters.AddWithValue("@estadoActual", estadoActual);
                     cmdHistorial.Parameters.AddWithValue("@fecha", DateTime.Now);
-                    cmdHistorial.Parameters.AddWithValue("@usuario", usuario);
+                    cmdHistorial.Parameters.AddWithValue("@usuario", usuarioExiste ? usuario : "Sistema");
                     cmdHistorial.Parameters.AddWithValue("@observaciones", "Nuevo soporte de pago adjuntado");
                     await cmdHistorial.ExecuteNonQueryAsync();
                 }

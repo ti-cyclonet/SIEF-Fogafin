@@ -43,6 +43,9 @@ namespace InscripcionEntidades
                 string? fileName = data?.nombreArchivo ?? "comprobante.pdf";
                 decimal? valor = data?.valor;
                 string? fechaPagoStr = data?.fechaPago;
+                // Obtener usuario del body de la petición
+                string usuario = data?.usuario ?? "Sistema";
+                _logger.LogInformation($"Usuario recibido: {usuario}");
                 
                 if (string.IsNullOrWhiteSpace(base64File))
                 {
@@ -86,15 +89,59 @@ namespace InscripcionEntidades
                     await blobClient.UploadAsync(stream, overwrite: true);
                 }
 
-                // Guardar registro en TN07_Adjuntos
+                // Guardar registro en TN07_Adjuntos y TN09_Extractos
                 using (var conn = new SqlConnection(connectionString))
                 {
                     await conn.OpenAsync();
-                    var cmd = new SqlCommand("INSERT INTO [SIIR-ProdV1].[dbo].[TN07_Adjuntos] (TN07_TM02_Codigo, TN07_Archivo, TN07_Fecha) VALUES (@entidadId, @archivo, @fecha)", conn);
+                    var cmd = new SqlCommand("INSERT INTO [SIIR-ProdV1].[dbo].[TN07_Adjuntos] (TN07_TM02_Codigo, TN07_Archivo, TN07_Fecha) OUTPUT INSERTED.TN07_Id VALUES (@entidadId, @archivo, @fecha)", conn);
                     cmd.Parameters.AddWithValue("@entidadId", entidadId);
                     cmd.Parameters.AddWithValue("@archivo", blobClient.Uri.ToString());
                     cmd.Parameters.AddWithValue("@fecha", DateTime.Now);
-                    await cmd.ExecuteNonQueryAsync();
+                    var tn07Id = await cmd.ExecuteScalarAsync();
+                    
+                    // Registrar en TN09_Extractos si hay valor y fecha
+                    if (valor.HasValue && !string.IsNullOrEmpty(fechaPagoStr) && tn07Id != null)
+                    {
+                        DateTime fechaPago = DateTime.Parse(fechaPagoStr);
+                        var cmdExtracto = new SqlCommand("INSERT INTO [SIIR-ProdV1].[dbo].[TN09_Extractos] (TN09_Fecha, TN09_Valor, TN09_TN07_Id) VALUES (@fecha, @valor, @tn07Id)", conn);
+                        cmdExtracto.Parameters.AddWithValue("@fecha", fechaPago);
+                        cmdExtracto.Parameters.Add("@valor", System.Data.SqlDbType.Decimal).Value = valor.Value;
+                        cmdExtracto.Parameters.AddWithValue("@tn07Id", tn07Id);
+                        await cmdExtracto.ExecuteNonQueryAsync();
+                    }
+                }
+                
+                // Registrar en historial
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    await conn.OpenAsync();
+                    
+                    // Obtener estado y tipo actual para el historial
+                    var cmdEstado = new SqlCommand("SELECT TOP 1 TN05_TM01_EstadoActual, TN05_TM02_Tipo FROM [SIIR-ProdV1].[dbo].[TN05_Historico_Estado] WHERE TN05_TM02_Codigo = @entidadId ORDER BY TN05_Fecha DESC", conn);
+                    cmdEstado.Parameters.AddWithValue("@entidadId", entidadId);
+                    
+                    int estadoActual = 13;
+                    int tipoHistorial = 2;
+                    
+                    using (var reader = await cmdEstado.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            estadoActual = Convert.ToInt32(reader["TN05_TM01_EstadoActual"]);
+                            tipoHistorial = Convert.ToInt32(reader["TN05_TM02_Tipo"]);
+                        }
+                    }
+                    
+                    // Registrar en historial
+                    var cmdHistorial = new SqlCommand("INSERT INTO [SIIR-ProdV1].[dbo].[TN05_Historico_Estado] (TN05_TM02_Tipo, TN05_TM02_Codigo, TN05_TM01_EstadoAnterior, TN05_TM01_EstadoActual, TN05_Fecha, TN05_TN03_Usuario, TN05_Observaciones) VALUES (@tipo, @codigo, @estadoAnterior, @estadoActual, @fecha, @usuario, @observaciones)", conn);
+                    cmdHistorial.Parameters.AddWithValue("@tipo", tipoHistorial);
+                    cmdHistorial.Parameters.AddWithValue("@codigo", entidadId);
+                    cmdHistorial.Parameters.AddWithValue("@estadoAnterior", estadoActual);
+                    cmdHistorial.Parameters.AddWithValue("@estadoActual", estadoActual);
+                    cmdHistorial.Parameters.AddWithValue("@fecha", DateTime.Now);
+                    cmdHistorial.Parameters.AddWithValue("@usuario", usuario);
+                    cmdHistorial.Parameters.AddWithValue("@observaciones", "Extracto de pago adjuntado");
+                    await cmdHistorial.ExecuteNonQueryAsync();
                 }
 
                 var response = req.CreateResponse(HttpStatusCode.OK);

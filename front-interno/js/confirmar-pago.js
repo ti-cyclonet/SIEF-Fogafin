@@ -39,7 +39,7 @@ async function confirmarPago() {
       body: JSON.stringify({
         EntidadId: parseInt(entidadId),
         NumeroTramite: detalle.numeroTramite,
-        Funcionario: funcionario
+        usuario: funcionario
       })
     });
 
@@ -51,6 +51,8 @@ async function confirmarPago() {
       text: 'El estado ha cambiado a "Pendiente de aprobación final"',
       timer: 2000,
       showConfirmButton: false
+    }).then(() => {
+      location.reload();
     });
 
     detalle.estadoNombre = 'Pendiente de aprobación final';
