@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Consultar Estado del Trámite</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link href="../assets/styles.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+      body {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        padding-top: 50px;
+      }
+      .consulta-view-container {
+        max-width: 600px;
+        padding: 40px;
+        margin: 50px auto;
+        text-align: center;
+      }
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <div id="header"></div>
+
+    <div class="consulta-view-container">
+      <h2 id="mainTitle">Estado del Trámite de la Inscripción</h2>
+
+      <div id="consultaFormWrapper">
+        <p class="text-center text-muted mb-4">
+          Ingrese el Nit de la entidad sin puntos y sin el dígito de
+          verificación y el número de trámite recibido cuando inició el proceso
+          de inscripción.
+        </p>
+
+        <div class="form-wrapper">
+          <form id="consultaForm">
+            <div class="consulta-form-row">
+              <label for="inputNit" class="form-label">NIT*:</label>
+              <input type="text" id="inputNit" class="form-control" required />
+            </div>
+            <div class="consulta-form-row">
+              <label for="inputTramite" class="form-label"
+                >Número de trámite:</label
+              >
+              <input
+                type="text"
+                id="inputTramite"
+                class="form-control"
+                required
+              />
+            </div>
+            <div class="mb-3 d-flex justify-content-center align-items-center">
+              <input
+                type="checkbox"
+                class="form-check-input me-3"
+                id="checkRobot"
+                style="transform: scale(1.5);"
+                required
+              />
+              <label class="form-check-label me-3 fs-4" for="checkRobot"
+                >No soy un robot</label
+              >
+              <div><small>reCAPTCHA</small></div>
+            </div>
+            <div class="d-flex justify-content-center mt-5">
+              <button type="submit" class="btn btn-lg btn-principal">
+                Consultar
+              </button>
+              <button
+                type="button"
+                id="btnCancelarConsulta"
+                class="btn btn-lg btn-outline-secondary btn-secundario-outline"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="consultaResultado" class="hidden"></div>
+    </div>
+
+    <div id="footer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../config.js"></script>
+    <script>
+      fetch("https://sadevcarguefdi.z20.web.core.windows.net/header.html")
+        .then((res) => res.text())
+        .then((html) => (document.getElementById("header").innerHTML = html));
+
+      fetch("https://sadevcarguefdi.z20.web.core.windows.net/footer.html")
+        .then((res) => res.text())
+        .then((html) => (document.getElementById("footer").innerHTML = html));
+    </script>
+
+    <script>
+      function generarVistaResultado(datos) {
+        return `
+                <div class="resultado-view">
+                    <p class="text-center text-muted mb-5 fs-4">
+                        A continuación se presenta el estado de su solicitud:
+                    </p>
+
+                    <table class="table table-borderless fs-4">
+                        <tbody>
+                            <tr>
+                                <td class="fw-semibold text-start" style="width: 40%;">Nombre Entidad:</td>
+                                <td class="text-start">${datos.NombreEntidad}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">NIT:</td>
+                                <td class="text-start">${datos.Nit}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">Número de trámite:</td>
+                                <td class="text-start">${datos.NumeroTramite}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">Estado del trámite:</td>
+                                <td class="text-start text-success"><strong>${datos.EstadoTramite}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">Responsable:</td>
+                                <td class="text-start">${datos.NombreResponsable}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-semibold text-start">Cargo:</td>
+                                <td class="text-start">${datos.CargoResponsable}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="text-center mt-5">
+                        <button type="button" id="btnCerrarResultado" class="btn btn-lg btn-dark">Cerrar</button>
+                    </div>
+                </div>
+            `;
+      }
+
+      document
+        .getElementById("consultaForm")
+        .addEventListener("submit", async function (event) {
+          event.preventDefault();
+
+          const nit = document.getElementById("inputNit").value.trim();
+          const tramite = document.getElementById("inputTramite").value.trim();
+          const captcha = document.getElementById("checkRobot").checked;
+
+          if (!nit || !tramite) {
+            Swal.fire({
+              icon: "warning",
+              title: "Datos Faltantes",
+              text: "Por favor, ingrese el NIT y el Número de trámite.",
+              confirmButtonText: "Aceptar",
+            });
+            return;
+          }
+
+          if (!captcha) {
+            Swal.fire({
+              icon: "warning",
+              title: "Verificación requerida",
+              text: "Por favor, marque la casilla 'No soy un robot'.",
+              confirmButtonText: "Aceptar",
+            });
+            return;
+          }
+
+          Swal.fire({
+            title: "Consultando estado...",
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading(),
+          });
+
+          try {
+            const url = getApiUrl(`estado-tramite/${nit}/${tramite}`);
+            const response = await fetch(url);
+            Swal.close();
+
+            if (response.ok) {
+              const datos = await response.json();
+              document
+                .getElementById("consultaFormWrapper")
+                .classList.add("hidden");
+
+              const resultadoDiv = document.getElementById("consultaResultado");
+              resultadoDiv.innerHTML = generarVistaResultado(datos);
+              resultadoDiv.classList.remove("hidden");
+
+              document
+                .getElementById("btnCerrarResultado")
+                .addEventListener("click", function () {
+                  window.location.href = "../index.html";
+                });
+            } else if (response.status === 404) {
+              Swal.fire({
+                icon: "error",
+                title: "Trámite no encontrado",
+                text: "El NIT o el Número de trámite no coinciden con un registro existente.",
+                confirmButtonText: "Aceptar",
+              });
+            } else {
+              const errorData = await response.json();
+              Swal.fire({
+                icon: "error",
+                title: "Error de Consulta",
+                text:
+                  errorData.Mensaje ||
+                  "Ocurrió un error inesperado al consultar el estado.",
+                confirmButtonText: "Aceptar",
+              });
+            }
+          } catch (error) {
+            Swal.close();
+            console.error("Error al conectar con el backend:", error);
+            Swal.fire({
+              icon: "error",
+              title: "Error de Conexión",
+              text: "No fue posible conectar con el servicio de consulta. Verifique que el backend esté en ejecución.",
+              confirmButtonText: "Aceptar",
+            });
+          }
+        });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        document
+          .getElementById("btnCancelarConsulta")
+          .addEventListener("click", function () {
+            window.location.href = "../index.html";
+          });
+      });
+    </script>
+  </body>
+</html>

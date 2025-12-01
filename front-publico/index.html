@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sistema de Inscripción de Entidades Financieras</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link 
+      href="assets/styles.css"
+      rel="stylesheet"
+    />    
+  </head>
+  <body>
+    <div id="header"></div>
+
+    <div class="container text-center mt-5">
+      <h3 class="mb-5">SISTEMA DE INSCRIPCIÓN DE ENTIDADES FINANCIERAS</h3>
+
+      <div class="row justify-content-center">
+        <!-- Calcular -->
+        <div class="col-md-3 option-card">
+          <img src="assets/images/calculadora.png" alt="Calcular" />
+          <a href="pages/calcular.html" class="btn btn-outline-secondary">
+            Calcular el valor de inscripción
+          </a>
+        </div>
+
+        <!-- Iniciar -->
+        <div class="col-md-3 option-card">
+          <img src="assets/images/formulario.png" alt="Inscripción" />
+          <a href="pages/inscripcion.html" class="btn btn-outline-secondary">
+            Iniciar la inscripción
+          </a>
+        </div>
+
+        <!-- Consultar -->
+        <div class="col-md-3 option-card">
+          <img src="assets/images/busqueda.png" alt="Consultar" />
+          <a href="pages/consulta.html" class="btn btn-outline-secondary">
+            Consultar estado del trámite
+          </a>
+        </div>
+      </div>
+
+      <!-- Finalizar -->
+      <div class="row justify-content-center mt-4">
+        <div class="col-md-4">
+          <a
+            href="pages/finalizar.html"
+            class="btn btn-outline-secondary"
+          >
+            Finalizar
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div id="footer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      fetch("https://sadevcarguefdi.z20.web.core.windows.net/header.html")
+        .then((res) => res.text())
+        .then((html) => (document.getElementById("header").innerHTML = html));
+
+      fetch("https://sadevcarguefdi.z20.web.core.windows.net/footer.html")
+        .then((res) => res.text())
+        .then((html) => (document.getElementById("footer").innerHTML = html));
+    </script>
+  </body>
+</html>

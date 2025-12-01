@@ -1,0 +1,9 @@
+# 🔐 ARCHIVOS CON CREDENCIALES
+config.js
+
+# 📝 LOGS
+*.log
+
+# 🖥️ ARCHIVOS DEL SISTEMA
+.DS_Store
+Thumbs.db

@@ -1,0 +1,132 @@
+USE [SIIR-ProdV1];
+GO
+
+/* ============================================================
+   🔹 MIGRACIÓN DE TM02_ENTIDADFINANCIERA
+   🔹 Autor: Alfredo Mamby Bossa
+   🔹 Fecha: 2025-10-09
+   ============================================================ */
+
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    PRINT '============================================================';
+    PRINT '🚀 INICIO DE CREACIÓN Y COPIA DE TM02_ENTIDADFINANCIERA';
+    PRINT '============================================================';
+
+    -- 1️⃣ Crear tabla destino si no existe
+    IF OBJECT_ID('INSC.TM02_ENTIDADFINANCIERA', 'U') IS NULL
+    BEGIN
+        CREATE TABLE INSC.TM02_ENTIDADFINANCIERA
+        (
+            TM02_CODIGO INT IDENTITY(1,1) PRIMARY KEY,
+            TM02_TM01_CODIGO INT NOT NULL,
+            TM02_NIT NVARCHAR(20) NOT NULL,
+            TM02_NOMBRE NVARCHAR(150) NOT NULL,
+            TM02_FECHAINSCRIPCION DATETIME NOT NULL,
+            TM02_FECHARECLASIFICACION DATETIME NULL,
+            TM02_RESOLUCIONRECLASIFICACION NVARCHAR(50) NULL,
+            TM02_RESOLUCIONABSORCION NVARCHAR(50) NULL,
+            TM02_FECHARESABSORCION DATETIME NULL,
+            TM02_FECHARESRETIRO DATETIME NULL,
+            TM02_RESOLUCIONRETIRO NVARCHAR(50) NULL,
+            TM02_TM03_CODIGO INT NULL,
+            TM02_ACTIVO BIT NULL,
+            TM02_TM02_TM01_ABSORVIDOPOR INT NULL,
+            TM02_TM02_ABSORVIDOPOR INT NULL,
+            TM02_TIPOINFORME NVARCHAR(50) NULL,
+            TM02_FECHAACTUALIZACIONCIERRE DATETIME NULL,
+            TM02_CODIGOCUD NVARCHAR(50) NULL,
+            TM02_ESACTIVAFUSION BIT NULL,
+            TM02_FECHAACTIVAFUSION DATETIME NULL,
+            TM02_SISTEMICA BIT NULL,
+            TM02_GRUPO NVARCHAR(50) NULL,
+            TM02_BANCO NVARCHAR(50) NULL,
+            TM02_INDICADOR_EIS NVARCHAR(50) NULL,
+            id UNIQUEIDENTIFIER NULL
+        );
+        PRINT '✅ Tabla [INSC].[TM02_ENTIDADFINANCIERA] creada correctamente.';
+    END
+    ELSE
+    BEGIN
+        PRINT '⚠️ La tabla [INSC].[TM02_ENTIDADFINANCIERA] ya existe. Se omite la creación.';
+    END
+
+    -- 2️⃣ Habilitar insert manual en columna Identity
+    SET IDENTITY_INSERT INSC.TM02_ENTIDADFINANCIERA ON;
+
+    -- 3️⃣ Copiar datos desde dbo.TM02_ENTIDADFINANCIERA
+    INSERT INTO INSC.TM02_ENTIDADFINANCIERA
+    (
+        TM02_CODIGO,
+        TM02_TM01_CODIGO,
+        TM02_NIT,
+        TM02_NOMBRE,
+        TM02_FECHAINSCRIPCION,
+        TM02_FECHARECLASIFICACION,
+        TM02_RESOLUCIONRECLASIFICACION,
+        TM02_RESOLUCIONABSORCION,
+        TM02_FECHARESABSORCION,
+        TM02_FECHARESRETIRO,
+        TM02_RESOLUCIONRETIRO,
+        TM02_TM03_CODIGO,
+        TM02_ACTIVO,
+        TM02_TM02_TM01_ABSORVIDOPOR,
+        TM02_TM02_ABSORVIDOPOR,
+        TM02_TIPOINFORME,
+        TM02_FECHAACTUALIZACIONCIERRE,
+        TM02_CODIGOCUD,
+        TM02_ESACTIVAFUSION,
+        TM02_FECHAACTIVAFUSION,
+        TM02_SISTEMICA,
+        TM02_GRUPO,
+        TM02_BANCO,
+        TM02_INDICADOR_EIS,
+        id
+    )
+    SELECT
+        TM02_CODIGO,
+        TM02_TM01_CODIGO,
+        TM02_NIT,
+        TM02_NOMBRE,
+        TM02_FECHAINSCRIPCION,
+        TM02_FECHARECLASIFICACION,
+        TM02_RESOLUCIONRECLASIFICACION,
+        TM02_RESOLUCIONABSORCION,
+        TM02_FECHARESABSORCION,
+        TM02_FECHARESRETIRO,
+        TM02_RESOLUCIONRETIRO,
+        TM02_TM03_CODIGO,
+        TM02_ACTIVO,
+        TM02_TM02_TM01_ABSORVIDOPOR,
+        TM02_TM02_ABSORVIDOPOR,
+        TM02_TIPOINFORME,
+        TM02_FECHAACTUALIZACIONCIERRE,
+        TM02_CODIGOCUD,
+        TM02_ESACTIVAFUSION,
+        TM02_FECHAACTIVAFUSION,
+        TM02_SISTEMICA,
+        TM02_GRUPO,
+        TM02_BANCO,
+        TM02_INDICADOR_EIS,
+        id
+    FROM dbo.TM02_ENTIDADFINANCIERA;
+
+    PRINT '✅ Datos copiados correctamente a [INSC].[TM02_ENTIDADFINANCIERA].';
+
+    -- 4️⃣ Deshabilitar insert manual
+    SET IDENTITY_INSERT INSC.TM02_ENTIDADFINANCIERA OFF;
+
+    COMMIT TRANSACTION;
+
+    PRINT '============================================================';
+    PRINT '🎉 PROCESO COMPLETADO EXITOSAMENTE';
+    PRINT '============================================================';
+
+END TRY
+BEGIN CATCH
+    PRINT '❌ Error durante la ejecución.';
+    PRINT ERROR_MESSAGE();
+    ROLLBACK TRANSACTION;
+END CATCH;
+GO

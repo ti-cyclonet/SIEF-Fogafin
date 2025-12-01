@@ -1,0 +1,2 @@
+-- Ver todas las columnas de la tabla TM02_ENTIDADFINANCIERA
+SELECT TOP 1 * FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] WHERE TM02_Codigo = 99900;

@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Gestión de Usuarios - SIEF</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../assets/styles-dashboard.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body {
+            background-color: #f9fafb;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        .header-bg {
+            background: linear-gradient(135deg, #2e7d32 0%, #007bff 100%) !important;
+        }
+        .main-container {
+            min-height: 100vh;
+            padding: 30px 0;
+        }
+        .content-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-top: 4px solid;
+            border-image: linear-gradient(90deg, #2e7d32 0%, #007bff 100%) 1;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #2e7d32 0%, #007bff 100%);
+            border: none;
+        }
+        .table th {
+            background-color: #f8f9fa;
+            color: #2e7d32;
+            font-weight: 600;
+        }
+        .badge-perfil {
+            font-size: 0.75rem;
+        }
+        .perfil-jefe-ssd { background-color: #dc3545; }
+        .perfil-profesional-ssd { background-color: #007bff; }
+        .perfil-jefe-dot { background-color: #28a745; }
+        .perfil-profesional-dot { background-color: #17a2b8; }
+        .perfil-consulta { background-color: #6c757d; }
+        .usuario-item {
+            cursor: pointer;
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.85rem;
+        }
+        .usuario-item:hover {
+            background-color: #f8f9fa;
+        }
+        .usuario-nombre {
+            font-weight: 500;
+            color: #2e7d32;
+        }
+        .usuario-detalle {
+            color: #6c757d;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="header-bg bg-primary text-white py-3">
+        <div class="container d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <h3>Gestión de Usuarios - SIEF</h3>
+            </div>
+            <div class="d-flex align-items-center">
+                <div class="me-3 text-end">
+                    <div><i class="fas fa-user-circle"></i> <span id="nombreFuncionario">Cargando...</span></div>
+                    <small class="text-light opacity-75" id="departamentoFuncionario">Cargando...</small>
+                </div>
+                <button class="btn btn-sm btn-outline-light" id="btnSalir"><i class="fas fa-sign-out-alt"></i> Salir</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="container">
+            <div class="content-card p-4">
+                
+                <!-- Botones de Acción -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="text-primary mb-0">
+                        <i class="fas fa-users-cog me-2"></i>Administración de Usuarios
+                    </h4>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalUsuario" onclick="abrirModalNuevo()">
+                        <i class="fas fa-plus me-2"></i>Nuevo Usuario
+                    </button>
+                </div>
+
+                <!-- Filtros -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label">Filtrar por Área:</label>
+                        <select class="form-select" id="filtroArea">
+                            <option value="">Todas las áreas</option>
+                            <option value="SSD">SSD - Superintendencia de Supervisión y Desarrollo</option>
+                            <option value="DOT">DOT - Departamento de Operaciones Tecnológicas</option>
+                            <option value="DIF">DIF - Departamento de Información Financiera</option>
+                            <option value="DGC">DGC - Departamento de Gestión y Control</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Filtrar por Perfil:</label>
+                        <select class="form-select" id="filtroPerfil">
+                            <option value="">Todos los perfiles</option>
+                            <option value="Jefe SSD">Jefe SSD</option>
+                            <option value="Profesional SSD">Profesional SSD</option>
+                            <option value="Profesional DOT">Profesional DOT</option>
+                            <option value="Consulta">Consulta</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Buscar Usuario:</label>
+                        <input type="text" class="form-control" id="buscarUsuario" placeholder="Nombre o identificación...">
+                    </div>
+                </div>
+
+                <!-- Tabla de Usuarios -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Identificación</th>
+                                <th>Nombre Completo</th>
+                                <th>Área</th>
+                                <th>Perfil</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaUsuarios">
+                            <!-- Los usuarios se cargarán dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Paginación -->
+                <div class="d-flex justify-content-center mt-4" id="paginacion">
+                    <!-- Se genera dinámicamente -->
+                </div>
+
+                <!-- Botones de navegación -->
+                <div class="d-flex justify-content-center mt-4">
+                    <button type="button" class="btn btn-secondary me-3" id="btnLimpiar">
+                        <i class="fas fa-eraser me-1"></i>Limpiar filtros
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="btnCerrar">
+                        <i class="fas fa-times me-1"></i>Cerrar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Crear/Editar Usuario -->
+    <div class="modal fade" id="modalUsuario" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloModal">Nuevo Usuario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formUsuario">
+                        <input type="hidden" id="usuarioId">
+                        <input type="hidden" id="modoEdicion" value="false">
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <label class="form-label">Seleccionar Usuario *</label>
+                                <div class="dropdown">
+                                    <input type="text" class="form-control" id="buscadorUsuario" placeholder="Buscar usuario..." data-bs-toggle="dropdown" autocomplete="off">
+                                    <input type="hidden" id="usuarioDisponible" required>
+                                    <div class="dropdown-menu w-100" id="listaUsuarios" style="max-height: 300px; overflow-y: auto;">
+                                        <div class="px-3 py-2 text-muted small">Cargando usuarios...</div>
+                                    </div>
+                                </div>
+                                <small class="text-muted">Solo se muestran usuarios que aún no tienen acceso a SIEF</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Información del Usuario Seleccionado -->
+                        <div id="datosUsuario" style="display: none;" class="mt-4">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading"><i class="fas fa-user me-2"></i>Información del Usuario</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <strong>Identificación:</strong> <span id="identificacion"></span><br>
+                                        <strong>Nombre:</strong> <span id="nombreCompleto"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Área:</strong> <span id="area"></span><br>
+                                        <strong>Email:</strong> <span id="email"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Perfil SIEF *</label>
+                                <select class="form-select" id="perfil" required>
+                                    <option value="">Seleccionar perfil para SIEF</option>
+                                    <option value="Jefe SSD">Jefe SSD</option>
+                                    <option value="Profesional SSD">Profesional SSD</option>
+                                    <option value="Profesional DOT">Profesional DOT</option>
+                                    <option value="Consulta">Consulta</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Descripción de Permisos -->
+                        <div class="mt-4">
+                            <h6 class="text-primary">Permisos del Perfil Seleccionado:</h6>
+                            <div id="descripcionPermisos" class="alert alert-info">
+                                Seleccione un perfil para ver los permisos correspondientes.
+                            </div>
+                        </div>
+
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnGuardarUsuario">Activar Usuario en SIEF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Datos de usuarios
+        let usuarios = [];
+        let usuariosDisponibles = [];
+        let currentPage = 1;
+        let totalPages = 1;
+        
+        // Mapeo de áreas
+        const areasMap = {
+            '59030': 'SSD',
+            '52060': 'DIF', 
+            '52050': 'DOT',
+            '52070': 'DGC',
+            '59010': 'SMR'
+        };
+
+        // Descripciones de permisos por perfil
+        const permisosPorPerfil = {
+            'Jefe SSD': 'Aprobación de solicitudes, edición de información y cargue de documentos.',
+            'Profesional SSD': 'Consulta de trámites y cargue de documentos.',
+            'Profesional DOT': 'Aprobación de solicitudes, consulta de trámites, edición de información y cargue de documentos.',
+            'Consulta': 'Solo consulta de datos del trámite.'
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inicializar componentes
+            inicializarUsuario();
+            cargarUsuariosDesdeAPI();
+            cargarUsuariosDisponibles();
+            configurarEventos();
+        });
+
+        function inicializarUsuario() {
+            const userName = localStorage.getItem('currentUser');
+            const funcionarioSpan = document.getElementById('nombreFuncionario');
+            const departamentoSpan = document.getElementById('departamentoFuncionario');
+            
+            if (userName && funcionarioSpan) {
+                const parts = userName.split('.');
+                const displayUser = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+                funcionarioSpan.textContent = displayUser;
+                
+                const userAreaName = localStorage.getItem('userAreaName');
+                const userArea = localStorage.getItem('userArea');
+                const userRole = localStorage.getItem('userRole');
+                const userPerfil = localStorage.getItem('userPerfil');
+                let tipoUsuario = 'Funcionario';
+                let departamento = '';
+                
+                if (userName.toLowerCase() === 'adminsief') {
+                    tipoUsuario = 'Administrador SIEF';
+                } else if (userPerfil) {
+                    tipoUsuario = userPerfil;
+                } else if (userAreaName) {
+                    departamento = userAreaName;
+                } else {
+                    switch(userArea) {
+                        case '52050': departamento = 'DOT'; break;
+                        case '52060': departamento = 'DIF'; break;
+                        case '52070': departamento = 'DGC'; break;
+                        case '59030': departamento = userRole === 'Jefe' ? 'Jefe SSD' : 'SSD'; break;
+                        default: departamento = userRole === 'Jefe' ? 'Jefe SSD' : 'SSD';
+                    }
+                }
+                
+                departamentoSpan.textContent = userPerfil ? tipoUsuario : (departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario);
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        function configurarEventos() {
+            // Evento de logout
+            document.getElementById('btnSalir').addEventListener('click', () => {
+                localStorage.removeItem('currentUser');
+                window.location.href = '../index.html';
+            });
+
+            // Botones de navegación
+            document.getElementById('btnLimpiar').addEventListener('click', limpiarPagina);
+            document.getElementById('btnCerrar').addEventListener('click', cerrarPagina);
+
+            // Filtros
+            document.getElementById('filtroArea').addEventListener('change', filtrarUsuarios);
+            document.getElementById('filtroPerfil').addEventListener('change', filtrarUsuarios);
+            document.getElementById('buscarUsuario').addEventListener('input', filtrarUsuarios);
+
+            // Modal de usuario
+            document.getElementById('buscadorUsuario').addEventListener('input', filtrarUsuariosModal);
+            document.getElementById('buscadorUsuario').addEventListener('focus', () => {
+                if (usuariosDisponibles.length > 0) {
+                    mostrarUsuarios(usuariosDisponibles);
+                }
+            });
+            document.getElementById('perfil').addEventListener('change', mostrarPermisos);
+            document.getElementById('btnGuardarUsuario').addEventListener('click', guardarUsuario);
+        }
+
+        async function cargarUsuariosDesdeAPI(page = 1) {
+            try {
+                const response = await fetch(`http://localhost:7176/api/usuarios?page=${page}`);
+                const data = await response.json();
+                
+                usuarios = data.usuarios.map(u => ({
+                    identificacion: u.TM04_Identificacion,
+                    nombreCompleto: u.NombreCompleto,
+                    area: u.Area,
+                    perfil: u.Perfil,
+                    email: u.TM04_EMail,
+                    estado: u.Estado,
+                    codigoArea: u.CodigoArea
+                }));
+                
+                currentPage = data.currentPage;
+                totalPages = data.totalPages;
+                
+                cargarTablaUsuarios();
+                actualizarPaginacion();
+            } catch (error) {
+                console.error('Error al cargar usuarios:', error);
+                usuarios = [];
+                cargarTablaUsuarios();
+            }
+        }
+        
+        function cargarTablaUsuarios(usuariosFiltrados = usuarios) {
+            const tbody = document.getElementById('tablaUsuarios');
+            tbody.innerHTML = '';
+
+            usuariosFiltrados.forEach(usuario => {
+                const perfilClass = getPerfilClass(usuario.perfil);
+                const estadoBadge = usuario.estado === 'Activo' ? 'bg-success' : 'bg-secondary';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${usuario.identificacion}</td>
+                        <td>${usuario.nombreCompleto}</td>
+                        <td>${usuario.area}</td>
+                        <td><span class="badge ${perfilClass} badge-perfil">${usuario.perfil}</span></td>
+                        <td><span class="badge ${estadoBadge}">${usuario.estado}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editarUsuario('${usuario.identificacion}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="eliminarUsuario('${usuario.identificacion}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function getPerfilClass(perfil) {
+            const classes = {
+                'Jefe SSD': 'perfil-jefe-ssd',
+                'Profesional SSD': 'perfil-profesional-ssd',
+                'Profesional DOT': 'perfil-profesional-dot',
+                'Consulta': 'perfil-consulta'
+            };
+            return classes[perfil] || 'bg-secondary';
+        }
+
+        function filtrarUsuarios() {
+            const filtroArea = document.getElementById('filtroArea').value.trim();
+            const filtroPerfil = document.getElementById('filtroPerfil').value.trim();
+            const busqueda = document.getElementById('buscarUsuario').value.toLowerCase().trim();
+
+            let usuariosFiltrados = [...usuarios];
+
+            if (filtroArea) {
+                const mapeoAreas = {
+                    'SSD': 'DEPARTAMENTO DEL SISTEMA DE SEGURO DE DEPOSITOS',
+                    'DIF': 'DEPARTAMENTO DE INFORMACIÓN FINANCIERA',
+                    'DOT': 'DEPARTAMENTO DE OPERACIONES TECNOLÓGICAS',
+                    'DGC': 'DEPARTAMENTO DE GESTIÓN Y CONTROL'
+                };
+                
+                const areaBuscada = mapeoAreas[filtroArea] || filtroArea;
+                usuariosFiltrados = usuariosFiltrados.filter(usuario => {
+                    const areaUsuario = usuario.area ? usuario.area.toString().trim() : '';
+                    return areaUsuario === areaBuscada;
+                });
+            }
+
+            if (filtroPerfil) {
+                usuariosFiltrados = usuariosFiltrados.filter(usuario => 
+                    usuario.perfil && usuario.perfil.toString().trim() === filtroPerfil
+                );
+            }
+
+            if (busqueda) {
+                usuariosFiltrados = usuariosFiltrados.filter(usuario => 
+                    (usuario.nombreCompleto && usuario.nombreCompleto.toLowerCase().includes(busqueda)) ||
+                    (usuario.identificacion && usuario.identificacion.toLowerCase().includes(busqueda))
+                );
+            }
+
+            cargarTablaUsuarios(usuariosFiltrados);
+        }
+
+        function mostrarPermisos() {
+            const perfil = document.getElementById('perfil').value;
+            const descripcionDiv = document.getElementById('descripcionPermisos');
+            
+            if (perfil && permisosPorPerfil[perfil]) {
+                descripcionDiv.innerHTML = `<strong>${perfil}:</strong> ${permisosPorPerfil[perfil]}`;
+                descripcionDiv.className = 'alert alert-info';
+            } else {
+                descripcionDiv.innerHTML = 'Seleccione un perfil para ver los permisos correspondientes.';
+                descripcionDiv.className = 'alert alert-secondary';
+            }
+        }
+
+        function abrirModalNuevo() {
+            document.getElementById('modoEdicion').value = 'false';
+            document.getElementById('tituloModal').textContent = 'Activar Usuario en SIEF';
+            document.getElementById('btnGuardarUsuario').textContent = 'Activar Usuario en SIEF';
+            document.getElementById('buscadorUsuario').disabled = false;
+            document.getElementById('usuarioId').value = '';
+            document.getElementById('datosUsuario').style.display = 'none';
+        }
+
+        function editarUsuario(identificacion) {
+            const usuario = usuarios.find(u => u.identificacion === identificacion);
+            if (usuario) {
+                document.getElementById('modoEdicion').value = 'true';
+                document.getElementById('tituloModal').textContent = 'Editar Usuario';
+                document.getElementById('btnGuardarUsuario').textContent = 'Guardar Cambios';
+                document.getElementById('usuarioId').value = usuario.identificacion;
+                document.getElementById('buscadorUsuario').value = `${usuario.nombreCompleto} (${usuario.identificacion})`;
+                document.getElementById('buscadorUsuario').disabled = true;
+                document.getElementById('usuarioDisponible').value = usuario.identificacion;
+                document.getElementById('identificacion').textContent = usuario.identificacion;
+                document.getElementById('nombreCompleto').textContent = usuario.nombreCompleto;
+                document.getElementById('area').textContent = usuario.area;
+                document.getElementById('perfil').value = usuario.perfil;
+                document.getElementById('email').textContent = usuario.email;
+                document.getElementById('datosUsuario').style.display = 'block';
+                
+                mostrarPermisos();
+                new bootstrap.Modal(document.getElementById('modalUsuario')).show();
+            }
+        }
+
+        async function cargarUsuariosDisponibles() {
+            try {
+                const response = await fetch('http://localhost:7176/api/usuarios-disponibles');
+                usuariosDisponibles = await response.json();
+                mostrarUsuarios(usuariosDisponibles);
+            } catch (error) {
+                console.error('Error al cargar usuarios disponibles:', error);
+                const lista = document.getElementById('listaUsuarios');
+                lista.innerHTML = '<div class="px-3 py-2 text-danger small">Error al cargar usuarios</div>';
+            }
+        }
+        
+        function mostrarUsuarios(usuarios) {
+            const lista = document.getElementById('listaUsuarios');
+            
+            if (usuarios.length === 0) {
+                lista.innerHTML = '<div class="px-3 py-2 text-muted small">No hay usuarios disponibles</div>';
+                return;
+            }
+            
+            lista.innerHTML = usuarios.map(usuario => `
+                <div class="usuario-item" onclick="seleccionarUsuarioItem('${usuario.TM04_Identificacion}')">
+                    <div class="d-flex justify-content-between">
+                        <div class="usuario-nombre">${usuario.NombreCompleto}</div>
+                        <div class="usuario-detalle">${usuario.Area}</div>
+                    </div>
+                    <div class="usuario-detalle">${usuario.TM04_Identificacion} • ${usuario.TM04_EMail || 'Sin email'}</div>
+                </div>
+            `).join('');
+        }
+        
+        function seleccionarUsuarioItem(identificacion) {
+            const usuario = usuariosDisponibles.find(u => u.TM04_Identificacion === identificacion);
+            if (usuario) {
+                document.getElementById('buscadorUsuario').value = `${usuario.NombreCompleto} (${usuario.TM04_Identificacion})`;
+                document.getElementById('usuarioDisponible').value = identificacion;
+                document.getElementById('identificacion').textContent = usuario.TM04_Identificacion;
+                document.getElementById('nombreCompleto').textContent = usuario.NombreCompleto;
+                document.getElementById('area').textContent = usuario.Area;
+                document.getElementById('email').textContent = usuario.TM04_EMail || 'No disponible';
+                document.getElementById('datosUsuario').style.display = 'block';
+                
+                const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('buscadorUsuario'));
+                if (dropdown) dropdown.hide();
+            }
+        }
+        
+        function filtrarUsuariosModal() {
+            const busqueda = document.getElementById('buscadorUsuario').value.toLowerCase();
+            const usuariosFiltrados = usuariosDisponibles.filter(usuario => 
+                usuario.NombreCompleto.toLowerCase().includes(busqueda) ||
+                usuario.TM04_Identificacion.toLowerCase().includes(busqueda) ||
+                usuario.Area.toLowerCase().includes(busqueda)
+            );
+            mostrarUsuarios(usuariosFiltrados);
+        }
+
+        async function guardarUsuario() {
+            const form = document.getElementById('formUsuario');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const id = document.getElementById('usuarioId').value;
+            const modoEdicion = document.getElementById('modoEdicion').value === 'true';
+            const usuarioData = {
+                identificacion: document.getElementById('usuarioDisponible').value,
+                perfil: document.getElementById('perfil').value
+            };
+
+            try {
+                let response;
+                if (modoEdicion && id) {
+                    response = await fetch(`http://localhost:7176/api/usuarios/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ...usuarioData,
+                            nombreCompleto: document.getElementById('nombreCompleto').textContent,
+                            area: document.getElementById('area').textContent,
+                            email: document.getElementById('email').textContent,
+                            estado: 'Activo'
+                        })
+                    });
+                } else {
+                    response = await fetch('http://localhost:7176/api/usuarios', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(usuarioData)
+                    });
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    await cargarUsuariosDesdeAPI();
+                    await cargarUsuariosDisponibles();
+                    bootstrap.Modal.getInstance(document.getElementById('modalUsuario')).hide();
+                    form.reset();
+                    document.getElementById('usuarioId').value = '';
+                    document.getElementById('buscadorUsuario').value = '';
+                    document.getElementById('usuarioDisponible').value = '';
+                    document.getElementById('datosUsuario').style.display = 'none';
+                    
+                    Swal.fire({
+                        title: 'Éxito',
+                        text: result.message,
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire('Error', result.message, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Error de conexión con el servidor', 'error');
+            }
+        }
+
+        async function eliminarUsuario(identificacion) {
+            const result = await Swal.fire({
+                title: '¿Está seguro?',
+                text: 'Esta acción eliminará el acceso del usuario al sistema SIEF',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            });
+            
+            if (result.isConfirmed) {
+                try {
+                    const response = await fetch(`http://localhost:7176/api/usuarios/${identificacion}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const apiResult = await response.json();
+                    
+                    if (apiResult.success) {
+                        await cargarUsuariosDesdeAPI();
+                        Swal.fire('Eliminado', apiResult.message, 'success');
+                    } else {
+                        Swal.fire('Error', apiResult.message, 'error');
+                    }
+                } catch (error) {
+                    Swal.fire('Error', 'Error de conexión con el servidor', 'error');
+                }
+            }
+        }
+
+        document.getElementById('modalUsuario').addEventListener('hidden.bs.modal', () => {
+            document.getElementById('formUsuario').reset();
+            document.getElementById('usuarioId').value = '';
+            document.getElementById('buscadorUsuario').value = '';
+            document.getElementById('buscadorUsuario').disabled = false;
+            document.getElementById('usuarioDisponible').value = '';
+            document.getElementById('tituloModal').textContent = 'Activar Usuario en SIEF';
+            document.getElementById('descripcionPermisos').innerHTML = 'Seleccione un perfil para ver los permisos correspondientes.';
+            document.getElementById('descripcionPermisos').className = 'alert alert-secondary';
+            document.getElementById('datosUsuario').style.display = 'none';
+        });
+
+        function limpiarPagina() {
+            document.getElementById('filtroArea').selectedIndex = 0;
+            document.getElementById('filtroPerfil').selectedIndex = 0;
+            document.getElementById('buscarUsuario').value = '';
+            
+            cargarTablaUsuarios(usuarios);
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalUsuario'));
+            if (modal) {
+                modal.hide();
+            }
+        }
+
+        function cerrarPagina() {
+            limpiarPagina();
+            window.location.href = 'dashboard.html';
+        }
+
+        function actualizarPaginacion() {
+            const paginacionDiv = document.getElementById('paginacion');
+            if (totalPages <= 1) {
+                paginacionDiv.innerHTML = '';
+                return;
+            }
+
+            let html = '<nav><ul class="pagination">';
+            
+            // Botón anterior
+            html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">`;
+            html += `<a class="page-link" href="#" onclick="cambiarPagina(${currentPage - 1})">Anterior</a></li>`;
+            
+            // Números de página
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<li class="page-item ${i === currentPage ? 'active' : ''}">`;
+                html += `<a class="page-link" href="#" onclick="cambiarPagina(${i})">${i}</a></li>`;
+            }
+            
+            // Botón siguiente
+            html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">`;
+            html += `<a class="page-link" href="#" onclick="cambiarPagina(${currentPage + 1})">Siguiente</a></li>`;
+            
+            html += '</ul></nav>';
+            paginacionDiv.innerHTML = html;
+        }
+
+        function cambiarPagina(page) {
+            if (page < 1 || page > totalPages || page === currentPage) return;
+            cargarUsuariosDesdeAPI(page);
+        }
+    </script>
+</body>
+</html>

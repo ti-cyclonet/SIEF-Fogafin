@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Calcular Valor de Inscripción</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link href="../assets/styles.css" rel="stylesheet" />
+  </head>
+  <body class="bg-light">
+    <div id="header"></div>
+    <div class="container mt-5">
+      <div class="form-container">
+        <h2 class="mb-4 text-center">Calcular el valor de inscripción</h2>
+        <form id="calcForm">
+          <div class="mb-3">
+            <label for="capital" class="form-label">Capital suscrito*</label>
+            <input
+              type="text"
+              id="capital"
+              class="form-control"
+              placeholder="$0.000.000,00"
+              style="text-align: right"
+              min="0"
+              required
+            />
+            <div class="invalid-feedback">
+              Por favor, ingrese un valor numérico válido y mayor a cero.
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="valor" class="form-label"
+              >Valor de inscripción estimado</label
+            >
+            <input
+              type="text"
+              id="valor"
+              class="form-control readonly-field"
+              readonly
+            />
+          </div>
+          <div class="d-flex justify-content-between">
+            <button
+              type="button"
+              id="calcular"
+              class="btn btn-outline-secondary"
+            >
+              Calcular
+            </button>
+            <button type="reset" id="limpiar" class="btn btn-outline-secondary">
+              Limpiar
+            </button>
+            <button
+              type="button"
+              id="continuar"
+              class="btn btn-outline-secondary"
+            >
+              Continuar
+            </button>
+          </div>
+          <div class="note">
+            Nota: El valor calculado es solo una estimación y no constituye una
+            liquidación oficial.
+          </div>
+        </form>
+      </div>
+      <a href="../index.html" class="btn btn-outline-secondary mt-3">Volver</a>
+    </div>
+    <div id="footer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Cargar header y footer
+      fetch("https://sadevcarguefdi.z20.web.core.windows.net/header.html")
+        .then((res) => res.text())
+        .then((html) => (document.getElementById("header").innerHTML = html));
+
+      fetch("https://sadevcarguefdi.z20.web.core.windows.net/footer.html")
+        .then((res) => res.text())
+        .then((html) => (document.getElementById("footer").innerHTML = html));
+    </script>
+    <script>
+      const calcForm = document.getElementById("calcForm");
+      const capitalInput = document.getElementById("capital");
+      const valorInput = document.getElementById("valor");
+      const calcularBtn = document.getElementById("calcular");
+      const continuarBtn = document.getElementById("continuar");
+
+      let tasaConfig = 0.115; // valor por defecto
+
+      // 🔹 Cargar configuración desde archivo plano [config.json]
+      fetch("../assets/config.json")
+        .then((res) => res.json())
+        .then((data) => {
+          tasaConfig = typeof data.tasa === "number" ? data.tasa : tasaConfig;
+          console.log("✅ Tasa cargada desde config:", tasaConfig);
+        })
+        .catch((err) => {
+          console.error(
+            "⚠️ No se pudo cargar el archivo de configuración:",
+            err
+          );
+        });
+
+      // 🔹 Función de cálculo
+      function calcularValor(capital) {
+        return (tasaConfig * capital) / 1000;
+      }
+
+      // 🔹 Formatea un número a moneda con 2 decimales
+      function formatearMoneda(valor) {
+        return (
+          "$ " +
+          Number(valor).toLocaleString("es-CO", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })
+        );
+      }
+
+      // 🔹 Limpia el formato dejando solo el número
+      function limpiarFormato(valor) {
+        if (!valor) return 0;
+        // Permitir punto decimal y números
+        return parseFloat(valor.replace(/[^\d.]/g, "")) || 0;
+      }
+
+      // 🔹 Al enfocar el campo, mostrar el número limpio
+      capitalInput.addEventListener("focus", () => {
+        const valorGuardado = capitalInput.dataset.valor || "";
+        capitalInput.value = valorGuardado ? parseFloat(valorGuardado) : "";
+      });
+      
+      // 🔹 Validación en tiempo real: permitir números y punto decimal
+      capitalInput.addEventListener("input", (e) => {
+        if (document.activeElement === capitalInput) {
+          // Permitir números y un solo punto decimal
+          let valor = e.target.value.replace(/[^0-9.]/g, "");
+          // Asegurar solo un punto decimal
+          const puntos = valor.split('.');
+          if (puntos.length > 2) {
+            valor = puntos[0] + '.' + puntos.slice(1).join('');
+          }
+          e.target.value = valor;
+        }
+      });
+
+      // 🔹 Al perder el foco, aplicar formato monetario
+      capitalInput.addEventListener("blur", () => {
+        const valor = limpiarFormato(capitalInput.value);
+        if (valor > 0) {
+          capitalInput.dataset.valor = valor; // guarda el valor real sin formato
+          capitalInput.value = formatearMoneda(valor);
+        } else {
+          capitalInput.dataset.valor = "";
+          capitalInput.value = "";
+        }
+      });
+
+      // 🔹 Calcular al presionar el botón
+      calcularBtn.addEventListener("click", () => {
+        const valorGuardado = Number(capitalInput.dataset.valor) || 0;
+
+        if (isNaN(valorGuardado) || valorGuardado <= 0) {
+          capitalInput.classList.add("is-invalid");
+          valorInput.value = "";
+          return;
+        }
+
+        capitalInput.classList.remove("is-invalid");
+
+        const resultado = calcularValor(valorGuardado);
+        valorInput.value = formatearMoneda(resultado);
+      });
+
+      // 🔹 Resetear formulario
+      calcForm.addEventListener("reset", () => {
+        capitalInput.classList.remove("is-invalid");
+        valorInput.value = "";
+        capitalInput.value = "";
+        delete capitalInput.dataset.valor;
+      });
+
+      // 🔹 Continuar
+      continuarBtn.addEventListener("click", () => {
+        window.location.href = "inscripcion.html";
+      });
+    </script>
+  </body>
+</html>
