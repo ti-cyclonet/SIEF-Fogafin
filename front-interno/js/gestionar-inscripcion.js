@@ -139,6 +139,47 @@ function cargarComprobanteInicial(detalle) {
   tabla.innerHTML = '';
 }
 
+async function cargarDocumentosAdicionalesPago(entidadId) {
+  const tablaDocumentosPago = document.querySelector('#tablaDocumentosAdicionalesPago tbody');
+  if (!tablaDocumentosPago || !entidadId) return;
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}ConsultarDetalleEntidad/${entidadId}`);
+    if (!response.ok) return;
+    
+    const detalle = await response.json();
+    const archivos = detalle.archivos || [];
+    const documentosAdicionalesPago = archivos.filter(a => a.includes('PAGO_ADICIONAL_'));
+    
+    tablaDocumentosPago.innerHTML = '';
+    documentosAdicionalesPago.forEach((archivo, index) => {
+      const newRow = document.createElement('tr');
+      const link = document.createElement('a');
+      link.href = '#';
+      link.className = 'text-primary';
+      link.textContent = 'Ver archivo';
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        descargarArchivoDirecto(archivo);
+      });
+      
+      const td1 = document.createElement('td');
+      td1.className = 'fw-bold';
+      td1.style.width = '40%';
+      td1.textContent = `Nuevo soporte de pago [${index + 1}]:`;
+      
+      const td2 = document.createElement('td');
+      td2.appendChild(link);
+      
+      newRow.appendChild(td1);
+      newRow.appendChild(td2);
+      tablaDocumentosPago.appendChild(newRow);
+    });
+  } catch (error) {
+    console.error('Error al cargar documentos adicionales de pago:', error);
+  }
+}
+
 async function cargarHistorialGestion(entidadId) {
   const tabla = document.querySelector('#tablaHistorial tbody');
   if (!tabla) return;
@@ -244,7 +285,7 @@ function mostrarDetalleEntidad(detalle) {
     cargarHistorialGestion(detalle.id);
   }
   window.currentDetalle = detalle;
-  configurarLinksArchivos(detalle.archivos || [], detalle.rutaComprobantePago);
+  configurarLinksArchivos(detalle.archivos || [], detalle.rutaComprobantePago, detalle.id);
   actualizarBotonesGestion(detalle.estadoNombre, detalle.estadoId);
   controlarEditabilidadInformacionGeneral();
   if (informacionEntidad) informacionEntidad.classList.remove('d-none');
@@ -257,7 +298,7 @@ function obtenerEntidadSeleccionadaId() {
   return selectedOption ? selectedOption.value : null;
 }
 
-function configurarLinksArchivos(archivos, rutaComprobantePago = null) {
+function configurarLinksArchivos(archivos, rutaComprobantePago = null, entidadId = null) {
   const links = {
     'linkCertificado': 'CERTIFICADO_',
     'linkResolucion': 'RESOLUCION_',
@@ -324,33 +365,9 @@ function configurarLinksArchivos(archivos, rutaComprobantePago = null) {
   
   // Mostrar documentos adicionales de pago
   const tablaDocumentosPago = document.querySelector('#tablaDocumentosAdicionalesPago tbody');
-  const documentosAdicionalesPago = archivos ? archivos.filter(a => a.includes('ADICIONAL_PAGO_')) : [];
-  
-  if (tablaDocumentosPago) {
+  if (tablaDocumentosPago && entidadId) {
     tablaDocumentosPago.innerHTML = '';
-    documentosAdicionalesPago.forEach((archivo, index) => {
-      const newRow = document.createElement('tr');
-      const link = document.createElement('a');
-      link.href = '#';
-      link.className = 'text-primary';
-      link.textContent = 'Ver archivo';
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
-        descargarArchivoDirecto(archivo);
-      });
-      
-      const td1 = document.createElement('td');
-      td1.className = 'fw-bold';
-      td1.style.width = '40%';
-      td1.textContent = `Documento [${index + 1}]:`;
-      
-      const td2 = document.createElement('td');
-      td2.appendChild(link);
-      
-      newRow.appendChild(td1);
-      newRow.appendChild(td2);
-      tablaDocumentosPago.appendChild(newRow);
-    });
+    cargarDocumentosAdicionalesPago(entidadId);
   }
 }
 
@@ -563,7 +580,7 @@ function setupEventListeners() {
       const { value: formValues } = await Swal.fire({
         title: 'Adjuntar Documento Adicional de Pago',
         html: `
-          <input id="swal-fecha" class="swal2-input" type="date" placeholder="Fecha de pago">
+          <input id="swal-fecha" class="swal2-input" type="date" placeholder="Fecha de pago" max="${new Date().toISOString().split('T')[0]}">
           <input id="swal-valor" class="swal2-input" type="number" step="0.01" placeholder="Valor">
           <div class="file-wrapper" id="swal-archivo-wrapper" style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 0.375rem 0.75rem; background-color: #fff; cursor: pointer; min-height: 38px; margin: 0.5rem 0;">
             <span class="text-muted flex-grow-1" id="swal-archivo-text">Ningún archivo seleccionado</span>
@@ -1001,6 +1018,7 @@ async function subirArchivoAdicionalPago(archivo, fecha, valor) {
     }
     
     const fileBase64 = await convertirArchivoABase64(archivo);
+    const currentUser = localStorage.getItem('currentUser') || 'Usuario';
     const response = await fetch(`${API_BASE_URL}SubirDocumentoAdicionalPago?entidadId=${entidadId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1008,7 +1026,8 @@ async function subirArchivoAdicionalPago(archivo, fecha, valor) {
         archivoBase64: fileBase64,
         nombreArchivo: archivo.name,
         fechaPago: fecha,
-        valor: valor
+        valor: valor,
+        usuario: currentUser
       })
     });
     
