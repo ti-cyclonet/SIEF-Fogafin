@@ -1,5 +1,5 @@
 // Usar configuración del config.js (se carga desde el HTML)
-const API_BASE_URL = CLOUD_CONFIG?.API_BASE_URL || `http://localhost:${7000 + 176}/api`;
+const API_BASE_URL = (typeof CLOUD_CONFIG !== 'undefined' ? CLOUD_CONFIG.API_BASE_URL : null) || `http://localhost:${7000 + 176}/api/`;
 let buscarEntidad, selectEntidad, informacionEntidad, detalleEntidad;
 let entidadesData = [];
 let comprobantesPago = [];
@@ -517,10 +517,6 @@ function setupEventListeners() {
   
   // Elementos para documentos adicionales de pago
   const btnAdjuntarArchivoPago = document.getElementById('btnAdjuntarArchivoPago');
-  const uploadSectionPago = document.getElementById('uploadSectionPago');
-  const btnSubirArchivoPago = document.getElementById('btnSubirArchivoPago');
-  const btnCancelarSubidaPago = document.getElementById('btnCancelarSubidaPago');
-  const documentosAdicionalesPago = document.getElementById('documentosAdicionalesPago');
   
   if (btnAdjuntarArchivo && uploadSection) {
     btnAdjuntarArchivo.addEventListener('click', () => {
@@ -560,74 +556,55 @@ function setupEventListeners() {
     });
   }
   
-  // Event listeners para documentos adicionales de pago
-  if (btnAdjuntarArchivoPago && uploadSectionPago) {
-    btnAdjuntarArchivoPago.addEventListener('click', () => {
-      uploadSectionPago.classList.remove('d-none');
-      btnAdjuntarArchivoPago.classList.add('d-none');
-    });
-  }
+
   
-  if (btnCancelarSubidaPago && uploadSectionPago && btnAdjuntarArchivoPago && documentosAdicionalesPago) {
-    btnCancelarSubidaPago.addEventListener('click', () => {
-      uploadSectionPago.classList.add('d-none');
-      btnAdjuntarArchivoPago.classList.remove('d-none');
-      documentosAdicionalesPago.value = '';
-      const textSpan = document.getElementById('documentosAdicionalesPagoText');
-      if (textSpan) textSpan.textContent = 'Ningún archivo seleccionado';
-    });
-  }
-  
-  const documentosAdicionalesPagoWrapper = document.getElementById('documentosAdicionalesPagoWrapper');
-  const documentosAdicionalesPagoText = document.getElementById('documentosAdicionalesPagoText');
-  
-  if (documentosAdicionalesPagoWrapper && documentosAdicionalesPago && documentosAdicionalesPagoText) {
-    documentosAdicionalesPagoWrapper.addEventListener('click', () => {
-      documentosAdicionalesPago.click();
-    });
-    
-    documentosAdicionalesPago.addEventListener('change', () => {
-      if (documentosAdicionalesPago.files && documentosAdicionalesPago.files.length > 0) {
-        documentosAdicionalesPagoText.textContent = documentosAdicionalesPago.files[0].name;
-        documentosAdicionalesPagoText.className = 'text-dark flex-grow-1';
-      } else {
-        documentosAdicionalesPagoText.textContent = 'Ningún archivo seleccionado';
-        documentosAdicionalesPagoText.className = 'text-muted flex-grow-1';
-      }
-    });
-  }
-  
-  if (btnSubirArchivoPago && documentosAdicionalesPago) {
-    btnSubirArchivoPago.addEventListener('click', async () => {
-      const archivo = documentosAdicionalesPago.files[0];
-      if (!archivo) {
-        Swal.fire('Error', 'Seleccione un archivo', 'error');
-        return;
-      }
-      
+  if (btnAdjuntarArchivoPago) {
+    btnAdjuntarArchivoPago.addEventListener('click', async () => {
       const { value: formValues } = await Swal.fire({
-        title: 'Información del Pago Adicional',
+        title: 'Adjuntar Documento Adicional de Pago',
         html: `
           <input id="swal-fecha" class="swal2-input" type="date" placeholder="Fecha de pago">
           <input id="swal-valor" class="swal2-input" type="number" step="0.01" placeholder="Valor">
+          <div class="file-wrapper" id="swal-archivo-wrapper" style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 0.375rem 0.75rem; background-color: #fff; cursor: pointer; min-height: 38px; margin: 0.5rem 0;">
+            <span class="text-muted flex-grow-1" id="swal-archivo-text">Ningún archivo seleccionado</span>
+            <span class="badge bg-light text-dark">Seleccionar archivo</span>
+            <input id="swal-archivo" type="file" accept=".pdf" style="position: absolute; opacity: 0; width: 0; height: 0;">
+          </div>
         `,
+        didOpen: () => {
+          const wrapper = document.getElementById('swal-archivo-wrapper');
+          const fileInput = document.getElementById('swal-archivo');
+          const textSpan = document.getElementById('swal-archivo-text');
+          
+          wrapper.addEventListener('click', () => fileInput.click());
+          fileInput.addEventListener('change', () => {
+            if (fileInput.files && fileInput.files.length > 0) {
+              textSpan.textContent = fileInput.files[0].name;
+              textSpan.className = 'text-dark flex-grow-1';
+            } else {
+              textSpan.textContent = 'Ningún archivo seleccionado';
+              textSpan.className = 'text-muted flex-grow-1';
+            }
+          });
+        },
         focusConfirm: false,
         showCancelButton: true,
-        confirmButtonText: 'Continuar',
+        confirmButtonText: 'Subir',
         cancelButtonText: 'Cancelar',
         preConfirm: () => {
           const fecha = document.getElementById('swal-fecha').value;
           const valor = document.getElementById('swal-valor').value;
-          if (!fecha || !valor) {
-            Swal.showValidationMessage('Fecha y valor son obligatorios');
+          const archivo = document.getElementById('swal-archivo').files[0];
+          if (!fecha || !valor || !archivo) {
+            Swal.showValidationMessage('Todos los campos son obligatorios');
             return false;
           }
-          return { fecha, valor: parseFloat(valor) };
+          return { fecha, valor: parseFloat(valor), archivo };
         }
       });
       
       if (formValues) {
-        await subirArchivoAdicionalPago(archivo, formValues.fecha, formValues.valor);
+        await subirArchivoAdicionalPago(formValues.archivo, formValues.fecha, formValues.valor);
       }
     });
   }
@@ -1040,14 +1017,6 @@ async function subirArchivoAdicionalPago(archivo, fecha, valor) {
     const resultado = await response.json();
     agregarArchivoVisualmentePago(archivo.name, resultado.url);
     
-    const uploadSectionPago = document.getElementById('uploadSectionPago');
-    const btnAdjuntarArchivoPago = document.getElementById('btnAdjuntarArchivoPago');
-    const documentosAdicionalesPago = document.getElementById('documentosAdicionalesPago');
-    
-    if (uploadSectionPago) uploadSectionPago.classList.add('d-none');
-    if (btnAdjuntarArchivoPago) btnAdjuntarArchivoPago.classList.remove('d-none');
-    if (documentosAdicionalesPago) documentosAdicionalesPago.value = '';
-    
     Swal.fire({icon: 'success', title: 'Archivo subido', text: 'El archivo se ha agregado correctamente', timer: 2000, showConfirmButton: false});
   } catch (error) {
     Swal.fire('Error', 'No se pudo subir el archivo', 'error');
@@ -1072,7 +1041,7 @@ function agregarArchivoVisualmentePago(nombreArchivo, url) {
   const td1 = document.createElement('td');
   td1.className = 'fw-bold';
   td1.style.width = '40%';
-  td1.textContent = `Documento [${existingDocs + 1}]:`;
+  td1.textContent = `Nuevo soporte de pago [${existingDocs + 1}]:`;
   
   const td2 = document.createElement('td');
   td2.appendChild(link);
