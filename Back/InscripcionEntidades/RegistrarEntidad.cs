@@ -269,10 +269,10 @@ namespace InscripcionEntidades
 
                     // Obtener nombre del responsable asignado
                     string responsableQuery = @"
-                    SELECT TOP 1 TM04_Nombre + ' ' + TM04_Apellidos
-                    FROM [SistemasComunes].[dbo].[TM04_Responsables]
-                    WHERE TM04_TM03_Codigo IN (59030, 52060) AND TM04_Activo = 1
-                    ORDER BY TM04_Nombre";
+                    SELECT TOP 1 TM03_Nombre
+                    FROM [SIIR-ProdV1].[dbo].[TM03_Usuario]
+                    WHERE TM03_TM02_Codigo IN (59030, 52060)
+                    ORDER BY TM03_Nombre";
 
                     using (SqlCommand cmdResp = new SqlCommand(responsableQuery, conn))
                     {
@@ -318,21 +318,17 @@ namespace InscripcionEntidades
                             }
                         }
                         
-                        // Luego obtener los destinatarios
+                        // Obtener destinatarios desde TM03_Usuario
                         string destinatariosQuery = @"
                         SELECT 
-                            r.TM04_Nombre + ' ' + r.TM04_Apellidos AS NombreCompleto,
-                            r.TM04_EMail,
-                            s.TM03_Nombre AS Area,
-                            s.TM03_Codigo AS CodigoArea
-                        FROM [SistemasComunes].[dbo].[TM04_Responsables] r
-                        INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
-                        INNER JOIN [SistemasComunes].[dbo].[TM03_Subdirecciones] s ON r.TM04_TM03_Codigo = s.TM03_Codigo
-                        WHERE c.TM15_TM12_TM01_Codigo = 17 
-                        AND c.TM15_TM12_Ambiente = 'PROD'
-                        AND r.TM04_Activo = 1
-                        AND s.TM03_Codigo IN (52060, 52070, 59030)
-                        ORDER BY s.TM03_Codigo, r.TM04_Nombre";
+                            u.TM03_Nombre AS NombreCompleto,
+                            u.TM03_Correo AS TM03_Email,
+                            u.TM03_TM02_Codigo AS CodigoArea
+                        FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] u
+                        WHERE u.TM03_TM02_Codigo IN (52060, 52070, 59030)
+                        AND u.TM03_Correo IS NOT NULL
+                        AND u.TM03_Correo != ''
+                        ORDER BY u.TM03_TM02_Codigo, u.TM03_Nombre";
 
                         using (SqlCommand cmdDestinatarios = new SqlCommand(destinatariosQuery, conn))
                         {
@@ -341,8 +337,7 @@ namespace InscripcionEntidades
                                 while (await reader.ReadAsync())
                                 {
                                     string nombre = reader["NombreCompleto"].ToString() ?? "";
-                                    string email = reader["TM04_EMail"].ToString() ?? "";
-                                    string area = reader["Area"].ToString() ?? "";
+                                    string email = reader["TM03_Email"].ToString() ?? "";
                                     string codigoArea = reader["CodigoArea"].ToString() ?? "";
                                     
                                     if (!string.IsNullOrEmpty(email))

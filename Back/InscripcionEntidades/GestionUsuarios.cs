@@ -216,6 +216,75 @@ namespace InscripcionEntidades
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
                 var data = JsonSerializer.Deserialize<Dictionary<string, object>>(requestBody);
 
+                // Verificar si es solo para activar notificaciones
+                bool soloNotificaciones = data.ContainsKey("soloNotificaciones") && bool.Parse(data["soloNotificaciones"].ToString());
+                
+                if (soloNotificaciones)
+                {
+                    // Solo insertar en TM03_Usuario para notificaciones
+                    string usuarioNotif = data["TM03_Usuario"].ToString();
+                    string codigoAreaNotif = data["TM03_TM02_Codigo"].ToString();
+                    string nombreNotif = data["TM03_Nombre"].ToString();
+                    string correoNotif = data["TM03_Correo"].ToString();
+                    
+                    string connectionStringNotif = Environment.GetEnvironmentVariable("SqlConnectionString");
+                    
+                    using (var connection = new SqlConnection(connectionStringNotif))
+                    {
+                        await connection.OpenAsync();
+                        
+                        // Verificar si ya existe en TM03_Usuario
+                        string checkQuery = "SELECT COUNT(*) FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] WHERE [TM03_Usuario] = @usuario";
+                        using (var checkCmd = new SqlCommand(checkQuery, connection))
+                        {
+                            checkCmd.Parameters.AddWithValue("@usuario", usuarioNotif);
+                            int exists = (int)await checkCmd.ExecuteScalarAsync();
+
+                            if (exists == 0)
+                            {
+                                // Insertar nuevo registro
+                                string insertQuery = @"
+                                    INSERT INTO [SIIR-ProdV1].[dbo].[TM03_Usuario] 
+                                    ([TM03_Usuario], [TM03_TM02_Codigo], [TM03_Nombre], [TM03_Correo])
+                                    VALUES (@usuario, @codigoArea, @nombre, @correo)";
+
+                                using (var insertCmd = new SqlCommand(insertQuery, connection))
+                                {
+                                    insertCmd.Parameters.AddWithValue("@usuario", usuarioNotif);
+                                    insertCmd.Parameters.AddWithValue("@codigoArea", codigoAreaNotif);
+                                    insertCmd.Parameters.AddWithValue("@nombre", nombreNotif);
+                                    insertCmd.Parameters.AddWithValue("@correo", correoNotif);
+                                    await insertCmd.ExecuteNonQueryAsync();
+                                }
+                            }
+                            else
+                            {
+                                // Actualizar registro existente
+                                string updateQuery = @"
+                                    UPDATE [SIIR-ProdV1].[dbo].[TM03_Usuario] 
+                                    SET [TM03_TM02_Codigo] = @codigoArea, [TM03_Nombre] = @nombre, [TM03_Correo] = @correo
+                                    WHERE [TM03_Usuario] = @usuario";
+
+                                using (var updateCmd = new SqlCommand(updateQuery, connection))
+                                {
+                                    updateCmd.Parameters.AddWithValue("@codigoArea", codigoAreaNotif);
+                                    updateCmd.Parameters.AddWithValue("@nombre", nombreNotif);
+                                    updateCmd.Parameters.AddWithValue("@correo", correoNotif);
+                                    updateCmd.Parameters.AddWithValue("@usuario", usuarioNotif);
+                                    await updateCmd.ExecuteNonQueryAsync();
+                                }
+                            }
+                        }
+                    }
+                    
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    response.Headers.Add("Content-Type", "application/json");
+                    var resultado = new { success = true, message = "Usuario activado para notificaciones exitosamente" };
+                    await response.WriteStringAsync(JsonSerializer.Serialize(resultado));
+                    return response;
+                }
+
+                // Flujo normal de actualización
                 string nombreCompleto = data["nombreCompleto"].ToString();
                 string email = data["email"].ToString();
                 string area = data["area"].ToString();

@@ -538,7 +538,9 @@
                 document.getElementById('identificacion').textContent = usuario.identificacion;
                 document.getElementById('nombreCompleto').textContent = usuario.nombreCompleto;
                 document.getElementById('area').textContent = usuario.area;
-                document.getElementById('perfil').value = usuario.perfil;
+                // Mapear 'Profesional DOT' a 'Jefe / Profesional DOT' para el select
+                const perfilParaSelect = usuario.perfil === 'Profesional DOT' ? 'Jefe / Profesional DOT' : usuario.perfil;
+                document.getElementById('perfil').value = perfilParaSelect;
                 document.getElementById('email').textContent = usuario.email;
                 document.getElementById('datosUsuario').style.display = 'block';
                 
@@ -692,6 +694,9 @@
             const id = document.getElementById('usuarioId').value;
             const modoEdicion = document.getElementById('modoEdicion').value === 'true';
             
+            // Mapear perfil visual a código interno
+            const perfilInterno = perfil === 'Jefe / Profesional DOT' ? 'Profesional DOT' : perfil;
+            
             const usuarioData = {
                 TM03_Usuario: document.getElementById('usuarioDisponible').value,
                 TM03_TM02_Codigo: areaNotificaciones || null,
@@ -699,7 +704,7 @@
                 TM03_Correo: document.getElementById('email').textContent,
                 accesoSief: accesoSief,
                 notificaciones: notificaciones,
-                perfil: perfil || null
+                perfil: perfilInterno || null
             };
             
             // Solo notificaciones
@@ -769,13 +774,32 @@
 
             try {
                 let response;
-                if (modoEdicion && id && accesoSief) {
+                
+                // Verificar si el usuario ya tiene acceso SIEF y solo se están activando notificaciones
+                const usuarioExistente = usuarios.find(u => u.identificacion === usuarioData.TM03_Usuario);
+                const yaConAccesoSief = usuarioExistente && usuarioExistente.perfil;
+                const soloActivandoNotificaciones = modoEdicion && yaConAccesoSief && notificaciones && accesoSief;
+                
+                if (soloActivandoNotificaciones) {
+                    // Usar endpoint especial para solo activar notificaciones
+                    response = await fetch(`http://localhost:7176/api/usuarios/${usuarioData.TM03_Usuario}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            soloNotificaciones: true,
+                            TM03_Usuario: usuarioData.TM03_Usuario,
+                            TM03_TM02_Codigo: usuarioData.TM03_TM02_Codigo,
+                            TM03_Nombre: usuarioData.TM03_Nombre,
+                            TM03_Correo: usuarioData.TM03_Correo
+                        })
+                    });
+                } else if (modoEdicion && id && accesoSief) {
                     response = await fetch(`http://localhost:7176/api/usuarios/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             identificacion: usuarioData.TM03_Usuario,
-                            perfil: usuarioData.perfil,
+                            perfil: perfilInterno,
                             nombreCompleto: usuarioData.TM03_Nombre,
                             area: document.getElementById('area').textContent,
                             email: usuarioData.TM03_Correo,
@@ -788,7 +812,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             identificacion: usuarioData.TM03_Usuario,
-                            perfil: usuarioData.perfil
+                            perfil: perfilInterno
                         })
                     });
                 } else {
@@ -830,9 +854,7 @@
                         timer: 2000,
                         showConfirmButton: false
                     }).then(() => {
-                        if (modoEdicion) {
-                            location.reload();
-                        }
+                        location.reload();
                     });
                 } else {
                     Swal.fire('Error', result.message, 'error');
