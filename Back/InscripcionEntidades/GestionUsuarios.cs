@@ -445,6 +445,62 @@ namespace InscripcionEntidades
             };
         }
         
+        [Function("ConsultarNotificaciones")]
+        public async Task<HttpResponseData> ConsultarNotificaciones(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "usuarios/notificaciones")] HttpRequestData req)
+        {
+            _logger.LogInformation("Consultando usuarios con notificaciones activas");
+
+            try
+            {
+                string connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    string query = @"
+                        SELECT 
+                            TM03_Usuario,
+                            TM03_TM02_Codigo,
+                            TM03_Nombre,
+                            TM03_Correo
+                        FROM [SIIR-ProdV1].[dbo].[TM03_Usuario]";
+
+                    using (var command = new SqlCommand(query, connection))
+                    {
+                        var usuarios = new List<object>();
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                usuarios.Add(new
+                                {
+                                    TM03_Usuario = reader["TM03_Usuario"].ToString(),
+                                    TM03_TM02_Codigo = reader["TM03_TM02_Codigo"].ToString(),
+                                    TM03_Nombre = reader["TM03_Nombre"].ToString(),
+                                    TM03_Correo = reader["TM03_Correo"].ToString()
+                                });
+                            }
+                        }
+
+                        var response = req.CreateResponse(HttpStatusCode.OK);
+                        response.Headers.Add("Content-Type", "application/json");
+                        await response.WriteStringAsync(JsonSerializer.Serialize(usuarios));
+                        return response;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al consultar notificaciones");
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Error interno del servidor");
+                return errorResponse;
+            }
+        }
+
         [Function("GestionarNotificaciones")]
         public async Task<HttpResponseData> GestionarNotificaciones(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "usuarios/notificaciones")] HttpRequestData req)

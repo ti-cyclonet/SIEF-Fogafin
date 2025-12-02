@@ -118,8 +118,8 @@
                             <tr>
                                 <th>Identificación</th>
                                 <th>Nombre Completo</th>
-                                <th>Área</th>
                                 <th>Perfil</th>
+                                <th>Notificaciones</th>
                                 <th>Estado</th>
                                 <th>Acciones</th>
                             </tr>
@@ -259,6 +259,7 @@
         // Datos de usuarios
         let usuarios = [];
         let usuariosDisponibles = [];
+        let usuariosNotificaciones = [];
         let currentPage = 1;
         let totalPages = 1;
         
@@ -285,6 +286,7 @@
             inicializarUsuario();
             cargarUsuariosDesdeAPI();
             cargarUsuariosDisponibles();
+            cargarUsuariosNotificaciones();
             configurarEventos();
         });
 
@@ -409,13 +411,19 @@
                 const perfilClass = getPerfilClass(usuario.perfil);
                 const estadoBadge = usuario.estado === 'Activo' ? 'bg-success' : 'bg-secondary';
                 const perfilDisplay = usuario.perfil === 'Profesional DOT' ? 'Jefe / Profesional DOT' : usuario.perfil;
+                
+                // Verificar si tiene notificaciones activas
+                const notificacion = usuariosNotificaciones.find(n => n.TM03_Usuario === usuario.identificacion);
+                const notificacionHtml = notificacion ? 
+                    `<i class="fas fa-bell" style="color: #28a745;"></i> ${getSiglaArea(notificacion.TM03_TM02_Codigo)}` :
+                    `<i class="fas fa-bell" style="color: #6c757d;"></i>`;
 
                 tbody.innerHTML += `
                     <tr>
                         <td>${usuario.identificacion}</td>
                         <td>${usuario.nombreCompleto}</td>
-                        <td>${usuario.area}</td>
                         <td><span class="badge ${perfilClass} badge-perfil">${perfilDisplay}</span></td>
+                        <td class="text-start">${notificacionHtml}</td>
                         <td><span class="badge ${estadoBadge}">${usuario.estado}</span></td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary me-1" onclick="editarUsuario('${usuario.identificacion}')">
@@ -503,6 +511,29 @@
                 document.getElementById('email').textContent = usuario.email;
                 document.getElementById('datosUsuario').style.display = 'block';
                 
+                // Verificar si tiene notificaciones activas
+                const notificacion = usuariosNotificaciones.find(n => n.TM03_Usuario === usuario.identificacion);
+                
+                // Habilitar checkboxes
+                document.getElementById('accesoSief').disabled = false;
+                document.getElementById('notificaciones').disabled = false;
+                
+                // Activar acceso SIEF (siempre activo si está en la lista de usuarios)
+                document.getElementById('accesoSief').checked = true;
+                document.getElementById('perfil').disabled = false;
+                
+                // Configurar notificaciones
+                if (notificacion) {
+                    document.getElementById('notificaciones').checked = true;
+                    document.getElementById('areaNotificaciones').disabled = false;
+                    document.getElementById('areaNotificaciones').value = notificacion.TM03_TM02_Codigo;
+                } else {
+                    document.getElementById('notificaciones').checked = false;
+                    document.getElementById('areaNotificaciones').disabled = true;
+                    document.getElementById('areaNotificaciones').value = '';
+                }
+                
+                validarBotonGuardar();
                 mostrarPermisos();
                 new bootstrap.Modal(document.getElementById('modalUsuario')).show();
             }
@@ -518,6 +549,27 @@
                 const lista = document.getElementById('listaUsuarios');
                 lista.innerHTML = '<div class="px-3 py-2 text-danger small">Error al cargar usuarios</div>';
             }
+        }
+        
+        async function cargarUsuariosNotificaciones() {
+            try {
+                const response = await fetch('http://localhost:7176/api/usuarios/notificaciones');
+                usuariosNotificaciones = await response.json();
+            } catch (error) {
+                console.error('Error al cargar notificaciones:', error);
+                usuariosNotificaciones = [];
+            }
+        }
+        
+        function getSiglaArea(codigo) {
+            const siglas = {
+                '59030': 'SSD',
+                '52010': 'SMR',
+                '52050': 'DOT',
+                '52060': 'DIF',
+                '52070': 'DGC'
+            };
+            return siglas[codigo] || codigo;
         }
         
         function mostrarUsuarios(usuarios) {
@@ -675,24 +727,24 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    // Si también tiene notificaciones activadas, gestionar TM03_Usuario
-                    if (notificaciones) {
-                        try {
-                            await fetch('http://localhost:7176/api/usuarios/notificaciones', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    ...usuarioData,
-                                    activarNotificaciones: true
-                                })
-                            });
-                        } catch (error) {
-                            console.error('Error al activar notificaciones:', error);
-                        }
+                    // Gestionar notificaciones según el estado del checkbox
+                    try {
+                        await fetch('http://localhost:7176/api/usuarios/notificaciones', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ...usuarioData,
+                                activarNotificaciones: notificaciones
+                            })
+                        });
+                    } catch (error) {
+                        console.error('Error al gestionar notificaciones:', error);
                     }
                     
                     await cargarUsuariosDesdeAPI();
                     await cargarUsuariosDisponibles();
+                    await cargarUsuariosNotificaciones();
+                    await cargarUsuariosNotificaciones();
                     bootstrap.Modal.getInstance(document.getElementById('modalUsuario')).hide();
                     form.reset();
                     document.getElementById('usuarioId').value = '';
@@ -706,6 +758,10 @@
                         icon: 'success',
                         timer: 2000,
                         showConfirmButton: false
+                    }).then(() => {
+                        if (modoEdicion) {
+                            location.reload();
+                        }
                     });
                 } else {
                     Swal.fire('Error', result.message, 'error');
