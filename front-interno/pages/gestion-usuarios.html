@@ -357,10 +357,17 @@
             // Event listeners para checkboxes
             document.getElementById('accesoSief').addEventListener('change', function() {
                 document.getElementById('perfil').disabled = !this.checked;
+                if (!this.checked) {
+                    document.getElementById('perfil').value = '';
+                    mostrarPermisos();
+                }
             });
             
             document.getElementById('notificaciones').addEventListener('change', function() {
                 document.getElementById('areaNotificaciones').disabled = !this.checked;
+                if (!this.checked) {
+                    document.getElementById('areaNotificaciones').value = '';
+                }
                 validarBotonGuardar();
             });
             
@@ -714,6 +721,8 @@
                             text: 'El usuario ha sido activado solo para recibir notificaciones del sistema SIEF',
                             icon: 'success',
                             confirmButtonText: 'Aceptar'
+                        }).then(() => {
+                            location.reload();
                         });
                     } else {
                         Swal.fire('Error', result.message, 'error');
@@ -730,9 +739,20 @@
             const id = document.getElementById('usuarioId').value;
             const modoEdicion = document.getElementById('modoEdicion').value === 'true';
 
+            // Si está en modo edición y no tiene acceso SIEF, eliminar de TM15
+            if (modoEdicion && !accesoSief) {
+                try {
+                    await fetch(`http://localhost:7176/api/usuarios/${usuarioData.TM03_Usuario}`, {
+                        method: 'DELETE'
+                    });
+                } catch (error) {
+                    console.error('Error al eliminar acceso SIEF:', error);
+                }
+            }
+
             try {
                 let response;
-                if (modoEdicion && id) {
+                if (modoEdicion && id && accesoSief) {
                     response = await fetch(`http://localhost:7176/api/usuarios/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -745,7 +765,7 @@
                             estado: 'Activo'
                         })
                     });
-                } else {
+                } else if (!modoEdicion && accesoSief) {
                     response = await fetch('http://localhost:7176/api/usuarios', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -754,6 +774,9 @@
                             perfil: usuarioData.perfil
                         })
                     });
+                } else {
+                    // Si no tiene acceso SIEF, crear respuesta simulada de éxito
+                    response = { ok: true, json: async () => ({ success: true, message: 'Usuario actualizado exitosamente' }) };
                 }
                 
                 const result = await response.json();
@@ -772,10 +795,9 @@
                     } catch (error) {
                         console.error('Error al gestionar notificaciones:', error);
                     }
-                    
+                        
                     await cargarUsuariosDesdeAPI();
                     await cargarUsuariosDisponibles();
-                    await cargarUsuariosNotificaciones();
                     await cargarUsuariosNotificaciones();
                     bootstrap.Modal.getInstance(document.getElementById('modalUsuario')).hide();
                     form.reset();
@@ -825,7 +847,9 @@
                     
                     if (apiResult.success) {
                         await cargarUsuariosDesdeAPI();
-                        Swal.fire('Eliminado', apiResult.message, 'success');
+                        Swal.fire('Eliminado', apiResult.message, 'success').then(() => {
+                            location.reload();
+                        });
                     } else {
                         Swal.fire('Error', apiResult.message, 'error');
                     }

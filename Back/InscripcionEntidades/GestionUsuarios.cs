@@ -342,7 +342,7 @@ namespace InscripcionEntidades
             [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "usuarios/{identificacion}")] HttpRequestData req,
             string identificacion)
         {
-            _logger.LogInformation($"Eliminando usuario del sistema SIEF: {identificacion}");
+            _logger.LogInformation($"Eliminando usuario: {identificacion}");
 
             try
             {
@@ -351,31 +351,63 @@ namespace InscripcionEntidades
                 using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.OpenAsync();
-
-                    string deleteQuery = @"
-                        DELETE FROM [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
-                        WHERE [TM15_TM04_Identificacion] = @identificacion AND [TM15_TM12_TM01_Codigo] = 17";
-
-                    using (var command = new SqlCommand(deleteQuery, connection))
+                    using (var transaction = connection.BeginTransaction())
                     {
-                        command.Parameters.AddWithValue("@identificacion", identificacion);
-                        int rowsAffected = await command.ExecuteNonQueryAsync();
+                        try
+                        {
+                            int siefDeleted = 0;
+                            int notifDeleted = 0;
 
-                        var response = req.CreateResponse(HttpStatusCode.OK);
-                        response.Headers.Add("Content-Type", "application/json");
-                        
-                        if (rowsAffected > 0)
-                        {
-                            var resultado = new { success = true, message = "Usuario eliminado del sistema SIEF exitosamente" };
-                            await response.WriteStringAsync(JsonSerializer.Serialize(resultado));
+                            // Eliminar de acceso SIEF
+                            string deleteSief = @"
+                                DELETE FROM [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
+                                WHERE [TM15_TM04_Identificacion] = @identificacion AND [TM15_TM12_TM01_Codigo] = 17";
+
+                            using (var cmd = new SqlCommand(deleteSief, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@identificacion", identificacion);
+                                siefDeleted = await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            // Eliminar de notificaciones
+                            string deleteNotif = "DELETE FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] WHERE [TM03_Usuario] = @identificacion";
+                            using (var cmd = new SqlCommand(deleteNotif, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@identificacion", identificacion);
+                                notifDeleted = await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            transaction.Commit();
+
+                            var response = req.CreateResponse(HttpStatusCode.OK);
+                            response.Headers.Add("Content-Type", "application/json");
+                            
+                            if (siefDeleted > 0 || notifDeleted > 0)
+                            {
+                                string message = "Usuario eliminado exitosamente";
+                                if (siefDeleted > 0 && notifDeleted > 0)
+                                    message += " (acceso SIEF y notificaciones)";
+                                else if (siefDeleted > 0)
+                                    message += " (acceso SIEF)";
+                                else
+                                    message += " (notificaciones)";
+                                    
+                                var resultado = new { success = true, message = message };
+                                await response.WriteStringAsync(JsonSerializer.Serialize(resultado));
+                            }
+                            else
+                            {
+                                var resultado = new { success = false, message = "Usuario no encontrado" };
+                                await response.WriteStringAsync(JsonSerializer.Serialize(resultado));
+                            }
+                            
+                            return response;
                         }
-                        else
+                        catch
                         {
-                            var resultado = new { success = false, message = "Usuario no encontrado en el sistema SIEF" };
-                            await response.WriteStringAsync(JsonSerializer.Serialize(resultado));
+                            transaction.Rollback();
+                            throw;
                         }
-                        
-                        return response;
                     }
                 }
             }
