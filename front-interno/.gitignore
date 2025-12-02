@@ -1,9 +1,18 @@
-# 🔐 ARCHIVOS CON CREDENCIALES
-config.js
+# Variables de entorno con secretos
+.env
+config.local.js
 
-# 📝 LOGS
+# Archivos de configuración con claves
+**/config.prod.js
+**/keys.js
+
+# Logs
 *.log
+npm-debug.log*
 
-# 🖥️ ARCHIVOS DEL SISTEMA
-.DS_Store
-Thumbs.db
+# Dependencias
+node_modules/
+
+# Archivos temporales
+.tmp/
+temp/

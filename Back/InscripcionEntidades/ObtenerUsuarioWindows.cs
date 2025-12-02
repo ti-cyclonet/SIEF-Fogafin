@@ -19,12 +19,15 @@ namespace InscripcionEntidades
         public async Task<HttpResponseData> Run(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "whoami")] HttpRequestData req)
         {
-            _logger.LogInformation("Obteniendo usuario de Windows");
+            _logger.LogInformation("=== DEBUG WHOAMI ===");
+            _logger.LogInformation($"URL completa: {req.Url}");
+            _logger.LogInformation($"Query string: {req.Url.Query}");
 
             try
             {
                 string usuario = "adminSief";
                 bool esAzure = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"));
+                _logger.LogInformation($"Es Azure: {esAzure}");
 
                 // Intentar obtener usuario desde cabeceras de autenticación integrada
                 if (req.Headers.TryGetValues("Authorization", out var authHeaders))
@@ -37,8 +40,18 @@ namespace InscripcionEntidades
                     }
                 }
 
+                // Verificar usuario desde query parameter
+                var queryParams = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
+                string userFromQuery = queryParams["user"];
+                _logger.LogInformation($"Parámetro 'user' desde query: '{userFromQuery}'");
+                
+                if (!string.IsNullOrEmpty(userFromQuery))
+                {
+                    usuario = userFromQuery.Contains("\\") ? userFromQuery.Split('\\').Last() : userFromQuery;
+                    _logger.LogInformation($"✅ Usuario desde query procesado: {usuario}");
+                }
                 // Verificar cabecera personalizada del usuario
-                if (req.Headers.TryGetValues("X-User-Identity", out var userHeaders))
+                else if (req.Headers.TryGetValues("X-User-Identity", out var userHeaders))
                 {
                     var userFromHeader = userHeaders.FirstOrDefault();
                     if (!string.IsNullOrEmpty(userFromHeader))

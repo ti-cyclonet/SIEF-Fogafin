@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Usuario</title>
+</head>
+<body>
+    <h3>Test Detección de Usuario</h3>
+    <button onclick="testUser()">Test Usuario</button>
+    <button onclick="setUser()">Configurar Usuario</button>
+    <button onclick="clearUser()">Limpiar Usuario</button>
+    <div id="result"></div>
+
+    <script src="./config.js"></script>
+    <script>
+        async function testUser() {
+            const result = document.getElementById('result');
+            
+            // 1. Configurar usuario de prueba
+            localStorage.setItem('detectedWindowsUser', 'jgarzon');
+            
+            // 2. Construir URL
+            const params = { user: 'jgarzon' };
+            const url = getApiUrl('whoami', params);
+            
+            result.innerHTML = `
+                <p><strong>Usuario en localStorage:</strong> ${localStorage.getItem('detectedWindowsUser')}</p>
+                <p><strong>URL generada:</strong> ${url}</p>
+            `;
+            
+            // 3. Hacer llamada
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: { 'X-User-Identity': 'jgarzon' }
+                });
+                
+                const usuario = await response.text();
+                result.innerHTML += `<p><strong>Respuesta del backend:</strong> ${usuario}</p>`;
+                
+            } catch (error) {
+                result.innerHTML += `<p><strong>Error:</strong> ${error.message}</p>`;
+            }
+        }
+        
+        function setUser() {
+            const user = prompt('Ingrese usuario:');
+            if (user) {
+                localStorage.setItem('detectedWindowsUser', user);
+                alert('Usuario configurado: ' + user);
+            }
+        }
+        
+        function clearUser() {
+            localStorage.removeItem('detectedWindowsUser');
+            alert('Usuario eliminado');
+        }
+    </script>
+</body>
+</html>

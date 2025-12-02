@@ -97,7 +97,7 @@
                     <div><i class="fas fa-user-circle"></i> <span id="nombreFuncionario">Cargando...</span></div>
                     <small class="text-light opacity-75" id="departamentoFuncionario">Cargando...</small>
                 </div>
-                <button class="btn btn-sm btn-outline-light" id="btnSalir"><i class="fas fa-sign-out-alt"></i> Salir</button>
+
             </div>
         </div>
     </div>
@@ -163,7 +163,17 @@
                 let departamento = '';
                 
                 if (userName.toLowerCase() === 'adminsief') {
-                    tipoUsuario = 'Administrador SIEF';
+                    // Bloquear acceso a AdminSief
+                    Swal.fire({
+                        title: 'Acceso Denegado',
+                        text: 'El usuario AdminSief ya no tiene acceso al sistema.',
+                        icon: 'error',
+                        confirmButtonText: 'Aceptar'
+                    }).then(() => {
+                        localStorage.clear();
+                        window.location.href = '../index.html';
+                    });
+                    return;
                 } else if (userPerfil) {
                     // Usar el perfil real del usuario
                     tipoUsuario = userPerfil === 'Profesional DOT' ? 'Jefe / Profesional DOT' : userPerfil;
@@ -213,24 +223,7 @@
                 return; 
             }
             
-            // 2. 🚪 Lógica de Logout Simulada
-            document.getElementById('btnSalir').addEventListener('click', () => {
-                localStorage.removeItem('currentUser');
-                localStorage.removeItem('userArea');
-                localStorage.removeItem('userAreaName');
-                localStorage.removeItem('userRole');
-                localStorage.removeItem('userPerfil');
-                localStorage.setItem('skipAutoLogin', 'true');
-                Swal.fire({
-                    title: "Cerrando Sesión...",
-                    icon: 'info',
-                    showConfirmButton: false,
-                    timer: 800,
-                    willClose: () => {
-                        window.location.href = '../index.html?manual=true';
-                    }
-                });
-            });
+
         });
     </script>
 </body>

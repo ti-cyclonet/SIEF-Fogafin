@@ -66,35 +66,76 @@
         <a href="#" class="d-block mt-3 text-muted" style="font-size: 0.9em">
           ¿Ha olvidado su contraseña?
         </a>
+        
+        <button type="button" class="btn btn-sm btn-outline-info mt-2" onclick="testUserDetection()">
+          🔍 Test Usuario
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-warning mt-2" onclick="detectRealUser()">
+          🔄 Detectar Usuario Real
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-success mt-2" onclick="configureUser()">
+          ⚙️ Configurar Usuario
+        </button>
+        <div id="debugInfo" class="mt-2 small text-muted"></div>
       </form>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="./assets/js/windows-auth.js"></script>
+    <script src="./assets/js/user-detector.js"></script>
     <script src="./config.js"></script>
     <script>
       // Utilidad para autenticación de Windows
       class WindowsAuth {
         static async obtenerUsuarioWindows() {
-          try {
-            const response = await fetch(getApiUrl('whoami'), {
-              method: 'GET',
-              credentials: 'include'
-            });
-            
-            if (response.ok) {
-              const usuario = await response.text();
-              return usuario.trim();
+          // Usar la nueva utilidad que funciona en local y nube
+          const usuario = await WindowsAuthHelper.iniciarSesionAutomatica();
+          
+          // Fallback al backend si no se obtuvo usuario
+          if (!usuario || usuario === 'adminSief') {
+            try {
+              // Obtener usuario detectado localmente
+              const usuarioLocal = localStorage.getItem('detectedWindowsUser');
+              let params = {};
+              let headers = { 'Accept': 'text/plain' };
+              
+              // Si hay usuario local, enviarlo al backend
+              if (usuarioLocal && usuarioLocal !== 'adminSief') {
+                params.user = usuarioLocal;
+                headers['X-User-Identity'] = usuarioLocal;
+              }
+              
+              const url = getApiUrl('whoami', params);
+              
+              const response = await fetch(url, {
+                method: 'GET',
+                credentials: 'include',
+                headers: headers
+              });
+              
+              if (response.ok) {
+                const usuarioBackend = await response.text();
+                return usuarioBackend.trim();
+              }
+            } catch (error) {
+              console.warn('Error obteniendo usuario desde backend:', error);
             }
-          } catch (error) {
-            console.warn('Error obteniendo usuario Windows:', error);
           }
-          return 'adminSief';
+          
+          return usuario;
         }
 
         static async intentarLoginAutomatico() {
           const usuario = await this.obtenerUsuarioWindows();
           if (usuario && usuario !== 'adminSief') {
-            return await validarUsuarioResponsable(usuario);
+            // Validar usuario antes de permitir login automático
+            const validacion = await validarUsuarioResponsable(usuario);
+            if (validacion && validacion.esValido) {
+              // Si es válido, guardar configuración permanente
+              localStorage.setItem('detectedWindowsUser', usuario);
+              localStorage.setItem('userConfigured', 'true');
+              return validacion;
+            }
           }
           return null;
         }
@@ -115,6 +156,16 @@
       // Obtener usuario del backend e intentar login automático
       document.addEventListener('DOMContentLoaded', async function() {
         try {
+          // Auto-detectar usuario si no está configurado
+          const yaConfigurado = localStorage.getItem('userConfigured') === 'true';
+          if (!yaConfigurado) {
+            await autoDetectAndConfigureUser();
+          }
+          
+          // Ocultar botones de debug siempre
+          const debugButtons = document.querySelectorAll('button[onclick*="test"], button[onclick*="detect"], button[onclick*="configure"]');
+          debugButtons.forEach(btn => btn.style.display = 'none');
+          
           // Verificar si se debe omitir login automático
           const params = new URLSearchParams(window.location.search);
           const omitirAuto = params.get('manual') === 'true' || localStorage.getItem('skipAutoLogin') === 'true';
@@ -270,6 +321,195 @@
             });
           }
         });
+        
+        // Función de prueba para debug
+        async function testUserDetection() {
+          const debugDiv = document.getElementById('debugInfo');
+          
+          // 1. Configurar usuario de prueba
+          localStorage.setItem('detectedWindowsUser', 'jgarzon');
+          
+          // 2. Construir URL
+          const params = { user: 'jgarzon' };
+          const url = getApiUrl('whoami', params);
+          
+          debugDiv.innerHTML = `
+            <strong>Debug Info:</strong><br>
+            Usuario en localStorage: ${localStorage.getItem('detectedWindowsUser')}<br>
+            URL generada: ${url}<br>
+          `;
+          
+          // 3. Hacer llamada
+          try {
+            const response = await fetch(url, {
+              method: 'GET',
+              headers: { 'X-User-Identity': 'jgarzon' }
+            });
+            
+            const usuario = await response.text();
+            debugDiv.innerHTML += `Respuesta del backend: <strong>${usuario}</strong><br>`;
+            
+            if (usuario === 'jgarzon') {
+              debugDiv.innerHTML += '<span style="color: green;">✅ ¡Funciona correctamente!</span>';
+            } else {
+              debugDiv.innerHTML += '<span style="color: red;">❌ Aún devuelve adminSief</span>';
+            }
+            
+          } catch (error) {
+            debugDiv.innerHTML += `Error: ${error.message}`;
+          }
+        }
+        
+        // Detectar usuario real del sistema
+        async function detectRealUser() {
+          const debugDiv = document.getElementById('debugInfo');
+          
+          // 1. Limpiar localStorage
+          localStorage.removeItem('detectedWindowsUser');
+          localStorage.removeItem('userPromptShown');
+          
+          debugDiv.innerHTML = 'Detectando usuario real del sistema...<br>';
+          
+          // 2. Intentar detectar usuario real
+          const usuarioReal = await WindowsAuthHelper.obtenerUsuarioWindows();
+          
+          debugDiv.innerHTML += `Usuario detectado: <strong>${usuarioReal}</strong><br>`;
+          
+          // 3. Probar con el backend
+          if (usuarioReal && usuarioReal !== 'adminSief') {
+            const params = { user: usuarioReal };
+            const url = getApiUrl('whoami', params);
+            
+            try {
+              const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'X-User-Identity': usuarioReal }
+              });
+              
+              const usuarioBackend = await response.text();
+              debugDiv.innerHTML += `Respuesta del backend: <strong>${usuarioBackend}</strong><br>`;
+              
+              // 4. Guardar permanentemente si funciona
+              if (usuarioBackend === usuarioReal) {
+                localStorage.setItem('detectedWindowsUser', usuarioReal);
+                localStorage.setItem('userConfigured', 'true');
+                debugDiv.innerHTML += '<span style="color: green;">✅ Usuario guardado permanentemente</span><br>';
+              }
+              
+              // 5. Actualizar campo de usuario
+              const inputUsuario = document.getElementById('inputUsuario');
+              if (inputUsuario) {
+                inputUsuario.value = usuarioReal;
+              }
+              
+            } catch (error) {
+              debugDiv.innerHTML += `Error: ${error.message}`;
+            }
+          } else {
+            debugDiv.innerHTML += '<span style="color: orange;">No se pudo detectar usuario automáticamente</span>';
+          }
+        }
+        
+        // Configurar usuario manualmente
+        function configureUser() {
+          const currentUser = localStorage.getItem('detectedWindowsUser') || '';
+          const newUser = prompt('Ingrese su usuario de Windows (ej: AlfredoMamby):', currentUser);
+          
+          if (newUser && newUser.trim()) {
+            const cleanUser = newUser.trim().toLowerCase();
+            localStorage.setItem('detectedWindowsUser', cleanUser);
+            
+            // Actualizar campo de usuario
+            const inputUsuario = document.getElementById('inputUsuario');
+            if (inputUsuario) {
+              inputUsuario.value = cleanUser;
+            }
+            
+            const debugDiv = document.getElementById('debugInfo');
+            debugDiv.innerHTML = `<span style="color: green;">✅ Usuario configurado: <strong>${cleanUser}</strong></span><br>`;
+            debugDiv.innerHTML += 'La próxima vez se usará automáticamente.';
+          }
+        }
+        
+        // Auto-detectar y configurar usuario automáticamente
+        async function autoDetectAndConfigureUser() {
+          try {
+            // Intentar obtener usuario desde el entorno del navegador
+            let usuarioDetectado = null;
+            
+            // Método 1: ActiveX (IE/Edge corporativo)
+            try {
+              if (typeof ActiveXObject !== 'undefined') {
+                const network = new ActiveXObject("WScript.Network");
+                usuarioDetectado = network.UserName;
+              }
+            } catch (e) {}
+            
+            // Método 2: Desde variables del sistema (si están disponibles)
+            if (!usuarioDetectado && typeof process !== 'undefined' && process.env) {
+              usuarioDetectado = process.env.USERNAME || process.env.USER;
+            }
+            
+            // Método 3: Prompt único y silencioso
+            if (!usuarioDetectado) {
+              const hostname = window.location.hostname;
+              const isLocal = hostname === 'localhost' || hostname.includes('.local');
+              
+              if (!isLocal) {
+                // En nube, usar prompt una sola vez
+                usuarioDetectado = prompt('Para configuración inicial, ingrese su usuario de Windows:');
+              }
+            }
+            
+            // Si se detectó usuario, validarlo con el backend
+            if (usuarioDetectado && usuarioDetectado.trim()) {
+              const cleanUser = usuarioDetectado.trim().toLowerCase();
+              
+              // Validar usuario en sistemas comunes y SIEF
+              const isValid = await validarUsuarioResponsable(cleanUser);
+              
+              if (isValid && isValid.esValido) {
+                // Usuario válido - guardar permanentemente
+                localStorage.setItem('detectedWindowsUser', cleanUser);
+                localStorage.setItem('userConfigured', 'true');
+                
+                // Guardar información adicional del usuario
+                if (isValid.codigoArea) {
+                  localStorage.setItem('userArea', isValid.codigoArea);
+                  localStorage.setItem('userAreaName', isValid.nombreArea);
+                }
+                if (isValid.perfil) {
+                  localStorage.setItem('userPerfil', isValid.perfil);
+                }
+                
+                // Actualizar campo de usuario
+                const inputUsuario = document.getElementById('inputUsuario');
+                if (inputUsuario) {
+                  inputUsuario.value = cleanUser;
+                  inputUsuario.readOnly = true;
+                  inputUsuario.classList.add('text-muted');
+                  inputUsuario.style.backgroundColor = '#f8f9fa';
+                }
+                
+                console.log(`Usuario ${cleanUser} validado y configurado automáticamente`);
+              } else {
+                console.warn(`Usuario ${cleanUser} no válido en sistemas comunes o SIEF`);
+              }
+            }
+          } catch (error) {
+            console.warn('Error en auto-detección:', error);
+          }
+        }
+        
+        // Función para resetear configuración (solo para admin)
+        function resetUserConfig() {
+          if (confirm('¿Está seguro de que desea resetear la configuración de usuario?')) {
+            localStorage.removeItem('detectedWindowsUser');
+            localStorage.removeItem('userConfigured');
+            localStorage.removeItem('userPromptShown');
+            alert('Configuración reseteada. Recargue la página.');
+          }
+        }
     </script>
   </body>
 </html>
