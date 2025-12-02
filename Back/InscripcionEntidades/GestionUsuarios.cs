@@ -661,6 +661,52 @@ namespace InscripcionEntidades
             }
         }
 
+        [Function("EliminarAccesoSief")]
+        public async Task<HttpResponseData> EliminarAccesoSief(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "usuarios/{identificacion}/sief")] HttpRequestData req,
+            string identificacion)
+        {
+            _logger.LogInformation($"Eliminando acceso SIEF para usuario: {identificacion}");
+
+            try
+            {
+                string connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    string deleteQuery = @"
+                        DELETE FROM [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
+                        WHERE [TM15_TM04_Identificacion] = @identificacion AND [TM15_TM12_TM01_Codigo] = 17";
+
+                    using (var command = new SqlCommand(deleteQuery, connection))
+                    {
+                        command.Parameters.AddWithValue("@identificacion", identificacion);
+                        int rowsAffected = await command.ExecuteNonQueryAsync();
+                        
+                        _logger.LogInformation($"Filas eliminadas: {rowsAffected} para usuario: {identificacion}");
+
+                        var response = req.CreateResponse(HttpStatusCode.OK);
+                        response.Headers.Add("Content-Type", "application/json");
+                        
+                        var resultado = new { success = true, message = $"Acceso SIEF eliminado exitosamente. Filas afectadas: {rowsAffected}" };
+                        await response.WriteStringAsync(JsonSerializer.Serialize(resultado));
+                        return response;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar acceso SIEF");
+                var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                errorResponse.Headers.Add("Content-Type", "application/json");
+                var error = new { success = false, message = "Error al eliminar acceso SIEF: " + ex.Message };
+                await errorResponse.WriteStringAsync(JsonSerializer.Serialize(error));
+                return errorResponse;
+            }
+        }
+
         private bool IsValidPerfil(string perfil)
         {
             var validPerfiles = new[] { "Consulta", "Profesional DOT", "Jefe SSD", "Profesional SSD", "Jefe / Profesional DOT" };

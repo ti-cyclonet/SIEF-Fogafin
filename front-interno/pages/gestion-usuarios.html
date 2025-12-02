@@ -688,6 +688,10 @@
                 return;
             }
             
+            const form = document.getElementById('formUsuario');
+            const id = document.getElementById('usuarioId').value;
+            const modoEdicion = document.getElementById('modoEdicion').value === 'true';
+            
             const usuarioData = {
                 TM03_Usuario: document.getElementById('usuarioDisponible').value,
                 TM03_TM02_Codigo: areaNotificaciones || null,
@@ -701,6 +705,20 @@
             // Solo notificaciones
             if (notificaciones && !accesoSief) {
                 console.log('Usuario activado solo para notificaciones:', usuarioData);
+                
+                // Si está en modo edición, eliminar acceso SIEF primero
+                if (modoEdicion) {
+                    try {
+                        console.log(`Eliminando acceso SIEF para usuario: ${usuarioData.TM03_Usuario}`);
+                        const deleteResponse = await fetch(`http://localhost:7176/api/usuarios/${usuarioData.TM03_Usuario}/sief`, {
+                            method: 'DELETE'
+                        });
+                        const deleteResult = await deleteResponse.json();
+                        console.log('Resultado eliminación SIEF:', deleteResult);
+                    } catch (error) {
+                        console.error('Error al eliminar acceso SIEF:', error);
+                    }
+                }
                 
                 try {
                     const response = await fetch('http://localhost:7176/api/usuarios/notificaciones', {
@@ -717,8 +735,8 @@
                     if (result.success) {
                         bootstrap.Modal.getInstance(document.getElementById('modalUsuario')).hide();
                         Swal.fire({
-                            title: 'Usuario Activado',
-                            text: 'El usuario ha sido activado solo para recibir notificaciones del sistema SIEF',
+                            title: modoEdicion ? 'Usuario Actualizado' : 'Usuario Activado',
+                            text: 'El usuario ha sido configurado solo para recibir notificaciones del sistema SIEF',
                             icon: 'success',
                             confirmButtonText: 'Aceptar'
                         }).then(() => {
@@ -734,17 +752,16 @@
             }
             
             console.log('Datos del usuario a guardar:', usuarioData);
-            
-            const form = document.getElementById('formUsuario');
-            const id = document.getElementById('usuarioId').value;
-            const modoEdicion = document.getElementById('modoEdicion').value === 'true';
 
-            // Si está en modo edición y no tiene acceso SIEF, eliminar de TM15
+            // Si está en modo edición y no tiene acceso SIEF, eliminar solo de TM15
             if (modoEdicion && !accesoSief) {
                 try {
-                    await fetch(`http://localhost:7176/api/usuarios/${usuarioData.TM03_Usuario}`, {
+                    console.log(`Eliminando acceso SIEF para usuario: ${usuarioData.TM03_Usuario}`);
+                    const deleteResponse = await fetch(`http://localhost:7176/api/usuarios/${usuarioData.TM03_Usuario}/sief`, {
                         method: 'DELETE'
                     });
+                    const deleteResult = await deleteResponse.json();
+                    console.log('Resultado eliminación SIEF:', deleteResult);
                 } catch (error) {
                     console.error('Error al eliminar acceso SIEF:', error);
                 }
