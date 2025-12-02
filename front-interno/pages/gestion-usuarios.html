@@ -281,12 +281,12 @@
             'Consulta': 'Solo consulta de datos del trámite.'
         };
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             // Inicializar componentes
             inicializarUsuario();
+            await cargarUsuariosNotificaciones();
             cargarUsuariosDesdeAPI();
             cargarUsuariosDisponibles();
-            cargarUsuariosNotificaciones();
             configurarEventos();
         });
 
@@ -391,6 +391,22 @@
                     codigoArea: u.CodigoArea
                 }));
                 
+                // Agregar usuarios que solo tienen notificaciones
+                usuariosNotificaciones.forEach(notif => {
+                    const existeEnSief = usuarios.find(u => u.identificacion === notif.TM03_Usuario);
+                    if (!existeEnSief) {
+                        usuarios.push({
+                            identificacion: notif.TM03_Usuario,
+                            nombreCompleto: notif.TM03_Nombre,
+                            area: '',
+                            perfil: null,
+                            email: notif.TM03_Correo,
+                            estado: 'Activo',
+                            codigoArea: notif.TM03_TM02_Codigo
+                        });
+                    }
+                });
+                
                 currentPage = data.currentPage;
                 totalPages = data.totalPages;
                 
@@ -410,7 +426,15 @@
             usuariosFiltrados.forEach(usuario => {
                 const perfilClass = getPerfilClass(usuario.perfil);
                 const estadoBadge = usuario.estado === 'Activo' ? 'bg-success' : 'bg-secondary';
-                const perfilDisplay = usuario.perfil === 'Profesional DOT' ? 'Jefe / Profesional DOT' : usuario.perfil;
+                
+                // Mostrar perfil o '--' si no tiene acceso SIEF
+                let perfilDisplay;
+                if (usuario.perfil) {
+                    perfilDisplay = usuario.perfil === 'Profesional DOT' ? 'Jefe / Profesional DOT' : usuario.perfil;
+                    perfilDisplay = `<span class="badge ${perfilClass} badge-perfil">${perfilDisplay}</span>`;
+                } else {
+                    perfilDisplay = '<span class="text-start d-block">--</span>';
+                }
                 
                 // Verificar si tiene notificaciones activas
                 const notificacion = usuariosNotificaciones.find(n => n.TM03_Usuario === usuario.identificacion);
@@ -422,7 +446,7 @@
                     <tr>
                         <td>${usuario.identificacion}</td>
                         <td>${usuario.nombreCompleto}</td>
-                        <td><span class="badge ${perfilClass} badge-perfil">${perfilDisplay}</span></td>
+                        <td>${perfilDisplay}</td>
                         <td class="text-start">${notificacionHtml}</td>
                         <td><span class="badge ${estadoBadge}">${usuario.estado}</span></td>
                         <td>
@@ -518,9 +542,17 @@
                 document.getElementById('accesoSief').disabled = false;
                 document.getElementById('notificaciones').disabled = false;
                 
-                // Activar acceso SIEF (siempre activo si está en la lista de usuarios)
-                document.getElementById('accesoSief').checked = true;
-                document.getElementById('perfil').disabled = false;
+                // Configurar acceso SIEF según si tiene perfil o no
+                if (usuario.perfil) {
+                    // Usuario con acceso SIEF
+                    document.getElementById('accesoSief').checked = true;
+                    document.getElementById('perfil').disabled = false;
+                } else {
+                    // Usuario solo con notificaciones
+                    document.getElementById('accesoSief').checked = false;
+                    document.getElementById('perfil').value = '';
+                    document.getElementById('perfil').disabled = true;
+                }
                 
                 // Configurar notificaciones
                 if (notificacion) {

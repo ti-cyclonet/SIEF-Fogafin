@@ -265,21 +265,49 @@ namespace InscripcionEntidades
                                 await cmd.ExecuteNonQueryAsync();
                             }
 
-                            // 2. Actualizar perfil
-                            string updatePerfil = @"
-                                UPDATE [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
-                                SET [TM15_TM14_Perfil] = @perfil
-                                WHERE [TM15_TM04_Identificacion] = @identificacion 
-                                AND [TM15_TM12_TM01_Codigo] = 17 
-                                AND [TM15_TM12_Ambiente] IN ('PROD', 'PRODUCCION', 'PRUEBAS')";
-
-                            using (var cmd = new SqlCommand(updatePerfil, connection, transaction))
+                            // 2. Verificar si existe acceso SIEF y crear/actualizar
+                            string checkSief = @"SELECT COUNT(*) FROM [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
+                                                WHERE [TM15_TM04_Identificacion] = @identificacion AND [TM15_TM12_TM01_Codigo] = 17";
+                            
+                            int siefExists;
+                            using (var checkCmd = new SqlCommand(checkSief, connection, transaction))
                             {
-                                cmd.CommandTimeout = 120;
-                                cmd.Parameters.AddWithValue("@perfil", perfil);
-                                cmd.Parameters.AddWithValue("@identificacion", identificacion);
-                                int rowsAffected = await cmd.ExecuteNonQueryAsync();
-                                _logger.LogInformation($"Filas actualizadas: {rowsAffected}");
+                                checkCmd.Parameters.AddWithValue("@identificacion", identificacion);
+                                siefExists = (int)await checkCmd.ExecuteScalarAsync();
+                            }
+                            
+                            if (siefExists > 0)
+                            {
+                                // Actualizar perfil existente
+                                string updatePerfil = @"
+                                    UPDATE [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
+                                    SET [TM15_TM14_Perfil] = @perfil
+                                    WHERE [TM15_TM04_Identificacion] = @identificacion 
+                                    AND [TM15_TM12_TM01_Codigo] = 17 
+                                    AND [TM15_TM12_Ambiente] IN ('PROD', 'PRODUCCION', 'PRUEBAS')";
+
+                                using (var cmd = new SqlCommand(updatePerfil, connection, transaction))
+                                {
+                                    cmd.CommandTimeout = 120;
+                                    cmd.Parameters.AddWithValue("@perfil", perfil);
+                                    cmd.Parameters.AddWithValue("@identificacion", identificacion);
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+                            }
+                            else
+                            {
+                                // Crear nuevo acceso SIEF
+                                string insertConexion = @"
+                                    INSERT INTO [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
+                                    ([TM15_TM12_TM01_Codigo], [TM15_TM12_Ambiente], [TM15_TM14_Perfil], [TM15_TM04_Identificacion])
+                                    VALUES (17, 'PROD', @perfil, @identificacion)";
+
+                                using (var cmd = new SqlCommand(insertConexion, connection, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@perfil", perfil);
+                                    cmd.Parameters.AddWithValue("@identificacion", identificacion);
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
                             }
 
                             transaction.Commit();
