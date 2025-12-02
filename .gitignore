@@ -1,6 +1,7 @@
 # 🔐 ARCHIVOS CON CREDENCIALES
 config/database.php
 Back/InscripcionEntidades/local.settings.json
+front-interno/config.js
 *.env
 *.env.local
 *.env.production

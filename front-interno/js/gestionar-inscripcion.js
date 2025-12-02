@@ -1,5 +1,5 @@
 // Usar configuración del config.js (se carga desde el HTML)
-const API_BASE_URL = (typeof CLOUD_CONFIG !== 'undefined' ? CLOUD_CONFIG.API_BASE_URL : null) || `http://localhost:${7000 + 176}/api/`;
+// La función getApiUrl() maneja automáticamente local vs nube con autenticación
 let buscarEntidad, selectEntidad, informacionEntidad, detalleEntidad;
 let entidadesData = [];
 let comprobantesPago = [];
@@ -63,11 +63,11 @@ async function loadEntidadesGestionables() {
 
 async function descargarComprobanteDesdeId(tn07Id) {
   try {
-    const response = await fetch(`${API_BASE_URL}ObtenerArchivoDesdeId/${tn07Id}`);
+    const response = await fetch(getApiUrl(`ObtenerArchivoDesdeId/${tn07Id}`));
     if (!response.ok) throw new Error('Error al obtener el archivo');
     const data = await response.json();
     if (data.url) {
-      const downloadUrl = `${API_BASE_URL}DescargarArchivo?url=${encodeURIComponent(data.url)}&inline=true`;
+      const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(data.url)}&inline=true`);
       window.open(downloadUrl, '_blank');
     } else Swal.fire('Error', 'No se pudo obtener la URL del archivo', 'error');
   } catch (error) {
@@ -77,7 +77,7 @@ async function descargarComprobanteDesdeId(tn07Id) {
 
 async function descargarArchivoDirecto(archivoUrl) {
   try {
-    const downloadUrl = `${API_BASE_URL}DescargarArchivo?url=${encodeURIComponent(archivoUrl)}&inline=true`;
+    const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(archivoUrl)}&inline=true`);
     window.open(downloadUrl, '_blank');
   } catch (error) {
     Swal.fire('Error', 'No se pudo visualizar el archivo', 'error');
@@ -122,7 +122,7 @@ async function cargarDetalleEntidad(entidadId, entidadData = {}) {
     return;
   }
   try {
-    const response = await fetch(`${API_BASE_URL}ConsultarDetalleEntidad/${entidadId}`);
+    const response = await fetch(getApiUrl(`ConsultarDetalleEntidad/${entidadId}`));
     if (!response.ok) throw new Error('Error al obtener el detalle de la entidad');
     const detalle = await response.json();
     const detalleCompleto = { ...detalle, ...entidadData, id: entidadId };
@@ -148,7 +148,7 @@ async function cargarPagosExistentes(entidadId) {
   if (!tabla || !entidadId) return;
   
   try {
-    const response = await fetch(`${API_BASE_URL}ConsultarPagosEntidad?entidadId=${entidadId}`);
+    const response = await fetch(getApiUrl(`ConsultarPagosEntidad?entidadId=${entidadId}`));
     if (!response.ok) return;
     
     const extractos = await response.json();
@@ -175,7 +175,7 @@ async function cargarDocumentosAdicionalesPago(entidadId) {
   if (!tablaDocumentosPago || !entidadId) return;
   
   try {
-    const response = await fetch(`${API_BASE_URL}ConsultarDetalleEntidad/${entidadId}`);
+    const response = await fetch(getApiUrl(`ConsultarDetalleEntidad/${entidadId}`));
     if (!response.ok) return;
     
     const detalle = await response.json();
@@ -218,7 +218,7 @@ async function cargarHistorialGestion(entidadId) {
   tabla.innerHTML = '<tr><td colspan="5" class="text-center"><i class="fas fa-spinner fa-spin"></i> Cargando historial...</td></tr>';
   
   try {
-    const response = await fetch(`${API_BASE_URL}ConsultarHistorialGestion/${entidadId}`);
+    const response = await fetch(getApiUrl(`ConsultarHistorialGestion/${entidadId}`));
     if (!response.ok) throw new Error('Error al cargar historial');
     
     const historial = await response.json();
@@ -347,7 +347,7 @@ function configurarLinksArchivos(archivos, rutaComprobantePago = null, entidadId
       archivo = rutaComprobantePago;
     }
     if (archivo) {
-      const downloadUrl = `${API_BASE_URL}DescargarArchivo?url=${encodeURIComponent(archivo)}&inline=true`;
+      const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(archivo)}&inline=true`);
       linkElement.href = downloadUrl;
       linkElement.target = '_blank';
       linkElement.textContent = 'Ver archivo';
@@ -784,7 +784,7 @@ function setupEventListeners() {
         try {
           const currentUser = localStorage.getItem('currentUser') || 'Usuario';
           const observacionCompleta = `El capital suscrito se cambia por: ${formValues.observaciones}`;
-          const response = await fetch(`${API_BASE_URL}ActualizarCapitalSuscrito`, {
+          const response = await fetch(getApiUrl('ActualizarCapitalSuscrito'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -829,7 +829,7 @@ function setupEventListeners() {
       
       try {
         const currentUser = localStorage.getItem('currentUser') || 'Usuario';
-        const response = await fetch(`${API_BASE_URL}AprobarDocumentos`, {
+        const response = await fetch(getApiUrl('AprobarDocumentos'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -878,7 +878,7 @@ function setupEventListeners() {
       
       try {
         const currentUser = localStorage.getItem('currentUser') || 'Usuario';
-        const response = await fetch(`${API_BASE_URL}AprobarInscripcion`, {
+        const response = await fetch(getApiUrl('AprobarInscripcion'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -933,7 +933,7 @@ function setupEventListeners() {
       if (observaciones) {
         try {
           const currentUser = localStorage.getItem('currentUser') || 'Usuario';
-          const response = await fetch(`${API_BASE_URL}RechazarInscripcion`, {
+          const response = await fetch(getApiUrl('RechazarInscripcion'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -1044,7 +1044,7 @@ function setupEventListeners() {
           const fileBase64 = await convertirArchivoABase64(formValues.archivo);
           
           const currentUser = localStorage.getItem('currentUser') || 'Usuario';
-          const response = await fetch(`${API_BASE_URL}SubirComprobantePago?entidadId=${entidadId}`, {
+          const response = await fetch(getApiUrl(`SubirComprobantePago?entidadId=${entidadId}`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1093,7 +1093,7 @@ async function subirArchivoAdicional(archivo) {
     }
     
     const fileBase64 = await convertirArchivoABase64(archivo);
-    const response = await fetch(`${API_BASE_URL}SubirDocumentoAdicional?entidadId=${entidadId}`, {
+    const response = await fetch(getApiUrl(`SubirDocumentoAdicional?entidadId=${entidadId}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1161,7 +1161,7 @@ async function subirArchivoAdicionalPago(archivo, fecha, valor) {
     
     const fileBase64 = await convertirArchivoABase64(archivo);
     const currentUser = localStorage.getItem('currentUser') || 'Usuario';
-    const response = await fetch(`${API_BASE_URL}SubirDocumentoAdicionalPago?entidadId=${entidadId}`, {
+    const response = await fetch(getApiUrl(`SubirDocumentoAdicionalPago?entidadId=${entidadId}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

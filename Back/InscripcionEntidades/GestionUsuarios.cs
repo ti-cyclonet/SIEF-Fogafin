@@ -641,11 +641,21 @@ namespace InscripcionEntidades
                 string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
                 var data = JsonSerializer.Deserialize<Dictionary<string, object>>(requestBody);
 
-                string usuario = data["TM03_Usuario"].ToString();
-                string codigoArea = data["TM03_TM02_Codigo"].ToString();
-                string nombre = data["TM03_Nombre"].ToString();
-                string correo = data["TM03_Correo"].ToString();
-                bool activarNotificaciones = bool.Parse(data["activarNotificaciones"].ToString());
+                string usuario = data.ContainsKey("TM03_Usuario") && data["TM03_Usuario"] != null ? data["TM03_Usuario"].ToString() : "";
+                string codigoArea = data.ContainsKey("TM03_TM02_Codigo") && data["TM03_TM02_Codigo"] != null ? data["TM03_TM02_Codigo"].ToString() : "";
+                string nombre = data.ContainsKey("TM03_Nombre") && data["TM03_Nombre"] != null ? data["TM03_Nombre"].ToString() : "";
+                string correo = data.ContainsKey("TM03_Correo") && data["TM03_Correo"] != null ? data["TM03_Correo"].ToString() : "";
+                bool activarNotificaciones = data.ContainsKey("activarNotificaciones") && data["activarNotificaciones"] != null ? bool.Parse(data["activarNotificaciones"].ToString()) : false;
+                
+                // Validar campos requeridos
+                if (string.IsNullOrEmpty(usuario))
+                {
+                    var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                    errorResponse.Headers.Add("Content-Type", "application/json");
+                    var error = new { success = false, message = "El campo TM03_Usuario es requerido" };
+                    await errorResponse.WriteStringAsync(JsonSerializer.Serialize(error));
+                    return errorResponse;
+                }
 
                 string connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
 
@@ -655,6 +665,16 @@ namespace InscripcionEntidades
 
                     if (activarNotificaciones)
                     {
+                        // Validar campos requeridos para activar notificaciones
+                        if (string.IsNullOrEmpty(codigoArea) || string.IsNullOrEmpty(nombre))
+                        {
+                            var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                            errorResponse.Headers.Add("Content-Type", "application/json");
+                            var error = new { success = false, message = "Los campos TM03_TM02_Codigo y TM03_Nombre son requeridos para activar notificaciones" };
+                            await errorResponse.WriteStringAsync(JsonSerializer.Serialize(error));
+                            return errorResponse;
+                        }
+                        
                         // Verificar si ya existe
                         string checkQuery = "SELECT COUNT(*) FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] WHERE [TM03_Usuario] = @usuario";
                         using (var checkCmd = new SqlCommand(checkQuery, connection))
@@ -673,9 +693,9 @@ namespace InscripcionEntidades
                                 using (var insertCmd = new SqlCommand(insertQuery, connection))
                                 {
                                     insertCmd.Parameters.AddWithValue("@usuario", usuario);
-                                    insertCmd.Parameters.AddWithValue("@codigoArea", codigoArea);
-                                    insertCmd.Parameters.AddWithValue("@nombre", nombre);
-                                    insertCmd.Parameters.AddWithValue("@correo", correo);
+                                    insertCmd.Parameters.AddWithValue("@codigoArea", codigoArea ?? "");
+                                    insertCmd.Parameters.AddWithValue("@nombre", nombre ?? "");
+                                    insertCmd.Parameters.AddWithValue("@correo", correo ?? "");
                                     await insertCmd.ExecuteNonQueryAsync();
                                 }
                             }
@@ -689,9 +709,9 @@ namespace InscripcionEntidades
 
                                 using (var updateCmd = new SqlCommand(updateQuery, connection))
                                 {
-                                    updateCmd.Parameters.AddWithValue("@codigoArea", codigoArea);
-                                    updateCmd.Parameters.AddWithValue("@nombre", nombre);
-                                    updateCmd.Parameters.AddWithValue("@correo", correo);
+                                    updateCmd.Parameters.AddWithValue("@codigoArea", codigoArea ?? "");
+                                    updateCmd.Parameters.AddWithValue("@nombre", nombre ?? "");
+                                    updateCmd.Parameters.AddWithValue("@correo", correo ?? "");
                                     updateCmd.Parameters.AddWithValue("@usuario", usuario);
                                     await updateCmd.ExecuteNonQueryAsync();
                                 }
