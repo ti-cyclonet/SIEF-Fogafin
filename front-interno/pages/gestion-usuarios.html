@@ -95,27 +95,17 @@
 
                 <!-- Filtros -->
                 <div class="row mb-4">
-                    <div class="col-md-4">
-                        <label class="form-label">Filtrar por Área:</label>
-                        <select class="form-select" id="filtroArea">
-                            <option value="">Todas las áreas</option>
-                            <option value="SSD">SSD - Superintendencia de Supervisión y Desarrollo</option>
-                            <option value="DOT">DOT - Departamento de Operaciones Tecnológicas</option>
-                            <option value="DIF">DIF - Departamento de Información Financiera</option>
-                            <option value="DGC">DGC - Departamento de Gestión y Control</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label">Filtrar por Perfil:</label>
                         <select class="form-select" id="filtroPerfil">
                             <option value="">Todos los perfiles</option>
                             <option value="Jefe SSD">Jefe SSD</option>
                             <option value="Profesional SSD">Profesional SSD</option>
-                            <option value="Profesional DOT">Profesional DOT</option>
+                            <option value="Profesional DOT">Jefe / Profesional DOT</option>
                             <option value="Consulta">Consulta</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label">Buscar Usuario:</label>
                         <input type="text" class="form-control" id="buscarUsuario" placeholder="Nombre o identificación...">
                     </div>
@@ -205,13 +195,43 @@
 
                         <div class="row mt-3">
                             <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="accesoSief" disabled>
+                                    <label class="form-check-label" for="accesoSief">
+                                        Acceso a SIEF
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="notificaciones" disabled>
+                                    <label class="form-check-label" for="notificaciones">
+                                        Notificaciones
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-md-6">
                                 <label class="form-label">Perfil SIEF *</label>
-                                <select class="form-select" id="perfil" required>
+                                <select class="form-select" id="perfil" required disabled>
                                     <option value="">Seleccionar perfil para SIEF</option>
                                     <option value="Jefe SSD">Jefe SSD</option>
                                     <option value="Profesional SSD">Profesional SSD</option>
-                                    <option value="Profesional DOT">Profesional DOT</option>
+                                    <option value="Jefe / Profesional DOT">Jefe / Profesional DOT</option>
                                     <option value="Consulta">Consulta</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Área para Notificaciones</label>
+                                <select class="form-select" id="areaNotificaciones" disabled>
+                                    <option value="">Seleccionar área</option>
+                                    <option value="59030">SSD</option>
+                                    <option value="52010">SMR</option>
+                                    <option value="52050">DOT</option>
+                                    <option value="52060">DIF</option>
+                                    <option value="52070">DGC</option>
                                 </select>
                             </div>
                         </div>
@@ -256,6 +276,7 @@
             'Jefe SSD': 'Aprobación de solicitudes, edición de información y cargue de documentos.',
             'Profesional SSD': 'Consulta de trámites y cargue de documentos.',
             'Profesional DOT': 'Aprobación de solicitudes, consulta de trámites, edición de información y cargue de documentos.',
+            'Jefe / Profesional DOT': 'Aprobación de solicitudes, consulta de trámites, edición de información y cargue de documentos.',
             'Consulta': 'Solo consulta de datos del trámite.'
         };
 
@@ -287,7 +308,7 @@
                 if (userName.toLowerCase() === 'adminsief') {
                     tipoUsuario = 'Administrador SIEF';
                 } else if (userPerfil) {
-                    tipoUsuario = userPerfil;
+                    tipoUsuario = userPerfil === 'Profesional DOT' ? 'Jefe / Profesional DOT' : userPerfil;
                 } else if (userAreaName) {
                     departamento = userAreaName;
                 } else {
@@ -318,7 +339,6 @@
             document.getElementById('btnCerrar').addEventListener('click', cerrarPagina);
 
             // Filtros
-            document.getElementById('filtroArea').addEventListener('change', filtrarUsuarios);
             document.getElementById('filtroPerfil').addEventListener('change', filtrarUsuarios);
             document.getElementById('buscarUsuario').addEventListener('input', filtrarUsuarios);
 
@@ -331,6 +351,27 @@
             });
             document.getElementById('perfil').addEventListener('change', mostrarPermisos);
             document.getElementById('btnGuardarUsuario').addEventListener('click', guardarUsuario);
+            
+            // Event listeners para checkboxes
+            document.getElementById('accesoSief').addEventListener('change', function() {
+                document.getElementById('perfil').disabled = !this.checked;
+            });
+            
+            document.getElementById('notificaciones').addEventListener('change', function() {
+                document.getElementById('areaNotificaciones').disabled = !this.checked;
+                validarBotonGuardar();
+            });
+            
+            document.getElementById('accesoSief').addEventListener('change', validarBotonGuardar);
+        }
+        
+        function validarBotonGuardar() {
+            const usuarioSeleccionado = document.getElementById('usuarioDisponible').value;
+            const accesoSief = document.getElementById('accesoSief').checked;
+            const notificaciones = document.getElementById('notificaciones').checked;
+            const btnGuardar = document.getElementById('btnGuardarUsuario');
+            
+            btnGuardar.disabled = !usuarioSeleccionado || (!accesoSief && !notificaciones);
         }
 
         async function cargarUsuariosDesdeAPI(page = 1) {
@@ -367,13 +408,14 @@
             usuariosFiltrados.forEach(usuario => {
                 const perfilClass = getPerfilClass(usuario.perfil);
                 const estadoBadge = usuario.estado === 'Activo' ? 'bg-success' : 'bg-secondary';
+                const perfilDisplay = usuario.perfil === 'Profesional DOT' ? 'Jefe / Profesional DOT' : usuario.perfil;
 
                 tbody.innerHTML += `
                     <tr>
                         <td>${usuario.identificacion}</td>
                         <td>${usuario.nombreCompleto}</td>
                         <td>${usuario.area}</td>
-                        <td><span class="badge ${perfilClass} badge-perfil">${usuario.perfil}</span></td>
+                        <td><span class="badge ${perfilClass} badge-perfil">${perfilDisplay}</span></td>
                         <td><span class="badge ${estadoBadge}">${usuario.estado}</span></td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary me-1" onclick="editarUsuario('${usuario.identificacion}')">
@@ -399,26 +441,10 @@
         }
 
         function filtrarUsuarios() {
-            const filtroArea = document.getElementById('filtroArea').value.trim();
             const filtroPerfil = document.getElementById('filtroPerfil').value.trim();
             const busqueda = document.getElementById('buscarUsuario').value.toLowerCase().trim();
 
             let usuariosFiltrados = [...usuarios];
-
-            if (filtroArea) {
-                const mapeoAreas = {
-                    'SSD': 'DEPARTAMENTO DEL SISTEMA DE SEGURO DE DEPOSITOS',
-                    'DIF': 'DEPARTAMENTO DE INFORMACIÓN FINANCIERA',
-                    'DOT': 'DEPARTAMENTO DE OPERACIONES TECNOLÓGICAS',
-                    'DGC': 'DEPARTAMENTO DE GESTIÓN Y CONTROL'
-                };
-                
-                const areaBuscada = mapeoAreas[filtroArea] || filtroArea;
-                usuariosFiltrados = usuariosFiltrados.filter(usuario => {
-                    const areaUsuario = usuario.area ? usuario.area.toString().trim() : '';
-                    return areaUsuario === areaBuscada;
-                });
-            }
 
             if (filtroPerfil) {
                 usuariosFiltrados = usuariosFiltrados.filter(usuario => 
@@ -441,7 +467,8 @@
             const descripcionDiv = document.getElementById('descripcionPermisos');
             
             if (perfil && permisosPorPerfil[perfil]) {
-                descripcionDiv.innerHTML = `<strong>${perfil}:</strong> ${permisosPorPerfil[perfil]}`;
+                const perfilDisplay = perfil === 'Profesional DOT' ? 'Jefe / Profesional DOT' : perfil;
+                descripcionDiv.innerHTML = `<strong>${perfilDisplay}:</strong> ${permisosPorPerfil[perfil]}`;
                 descripcionDiv.className = 'alert alert-info';
             } else {
                 descripcionDiv.innerHTML = 'Seleccione un perfil para ver los permisos correspondientes.';
@@ -456,6 +483,7 @@
             document.getElementById('buscadorUsuario').disabled = false;
             document.getElementById('usuarioId').value = '';
             document.getElementById('datosUsuario').style.display = 'none';
+            document.getElementById('btnGuardarUsuario').disabled = true;
         }
 
         function editarUsuario(identificacion) {
@@ -522,6 +550,16 @@
                 document.getElementById('email').textContent = usuario.TM04_EMail || 'No disponible';
                 document.getElementById('datosUsuario').style.display = 'block';
                 
+                // Habilitar y activar ambos checkboxes al seleccionar usuario
+                document.getElementById('accesoSief').disabled = false;
+                document.getElementById('notificaciones').disabled = false;
+                document.getElementById('accesoSief').checked = true;
+                document.getElementById('notificaciones').checked = true;
+                document.getElementById('perfil').disabled = false;
+                document.getElementById('areaNotificaciones').disabled = false;
+                
+                validarBotonGuardar();
+                
                 const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('buscadorUsuario'));
                 if (dropdown) dropdown.hide();
             }
@@ -538,18 +576,75 @@
         }
 
         async function guardarUsuario() {
-            const form = document.getElementById('formUsuario');
-            if (!form.checkValidity()) {
-                form.reportValidity();
+            const accesoSief = document.getElementById('accesoSief').checked;
+            const notificaciones = document.getElementById('notificaciones').checked;
+            const perfil = document.getElementById('perfil').value;
+            const areaNotificaciones = document.getElementById('areaNotificaciones').value;
+            
+            // Validaciones
+            if (!accesoSief && !notificaciones) {
+                Swal.fire('Error', 'Debe seleccionar al menos una opción: Acceso a SIEF o Notificaciones', 'error');
                 return;
             }
-
+            
+            if (accesoSief && !perfil) {
+                Swal.fire('Error', 'Debe seleccionar un perfil SIEF si activa el acceso a la aplicación', 'error');
+                return;
+            }
+            
+            if (notificaciones && !areaNotificaciones) {
+                Swal.fire('Error', 'Debe seleccionar un área para notificaciones', 'error');
+                return;
+            }
+            
+            const usuarioData = {
+                TM03_Usuario: document.getElementById('usuarioDisponible').value,
+                TM03_TM02_Codigo: areaNotificaciones || null,
+                TM03_Nombre: document.getElementById('nombreCompleto').textContent,
+                TM03_Correo: document.getElementById('email').textContent,
+                accesoSief: accesoSief,
+                notificaciones: notificaciones,
+                perfil: perfil || null
+            };
+            
+            // Solo notificaciones
+            if (notificaciones && !accesoSief) {
+                console.log('Usuario activado solo para notificaciones:', usuarioData);
+                
+                try {
+                    const response = await fetch('http://localhost:7176/api/usuarios/notificaciones', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ...usuarioData,
+                            activarNotificaciones: true
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        bootstrap.Modal.getInstance(document.getElementById('modalUsuario')).hide();
+                        Swal.fire({
+                            title: 'Usuario Activado',
+                            text: 'El usuario ha sido activado solo para recibir notificaciones del sistema SIEF',
+                            icon: 'success',
+                            confirmButtonText: 'Aceptar'
+                        });
+                    } else {
+                        Swal.fire('Error', result.message, 'error');
+                    }
+                } catch (error) {
+                    Swal.fire('Error', 'Error de conexión con el servidor', 'error');
+                }
+                return;
+            }
+            
+            console.log('Datos del usuario a guardar:', usuarioData);
+            
+            const form = document.getElementById('formUsuario');
             const id = document.getElementById('usuarioId').value;
             const modoEdicion = document.getElementById('modoEdicion').value === 'true';
-            const usuarioData = {
-                identificacion: document.getElementById('usuarioDisponible').value,
-                perfil: document.getElementById('perfil').value
-            };
 
             try {
                 let response;
@@ -558,10 +653,11 @@
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            ...usuarioData,
-                            nombreCompleto: document.getElementById('nombreCompleto').textContent,
+                            identificacion: usuarioData.TM03_Usuario,
+                            perfil: usuarioData.perfil,
+                            nombreCompleto: usuarioData.TM03_Nombre,
                             area: document.getElementById('area').textContent,
-                            email: document.getElementById('email').textContent,
+                            email: usuarioData.TM03_Correo,
                             estado: 'Activo'
                         })
                     });
@@ -569,13 +665,32 @@
                     response = await fetch('http://localhost:7176/api/usuarios', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(usuarioData)
+                        body: JSON.stringify({
+                            identificacion: usuarioData.TM03_Usuario,
+                            perfil: usuarioData.perfil
+                        })
                     });
                 }
                 
                 const result = await response.json();
                 
                 if (result.success) {
+                    // Si también tiene notificaciones activadas, gestionar TM03_Usuario
+                    if (notificaciones) {
+                        try {
+                            await fetch('http://localhost:7176/api/usuarios/notificaciones', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    ...usuarioData,
+                                    activarNotificaciones: true
+                                })
+                            });
+                        } catch (error) {
+                            console.error('Error al activar notificaciones:', error);
+                        }
+                    }
+                    
                     await cargarUsuariosDesdeAPI();
                     await cargarUsuariosDisponibles();
                     bootstrap.Modal.getInstance(document.getElementById('modalUsuario')).hide();
@@ -642,10 +757,18 @@
             document.getElementById('descripcionPermisos').innerHTML = 'Seleccione un perfil para ver los permisos correspondientes.';
             document.getElementById('descripcionPermisos').className = 'alert alert-secondary';
             document.getElementById('datosUsuario').style.display = 'none';
+            
+            // Resetear y deshabilitar checkboxes y selects
+            document.getElementById('accesoSief').disabled = true;
+            document.getElementById('notificaciones').disabled = true;
+            document.getElementById('accesoSief').checked = false;
+            document.getElementById('notificaciones').checked = false;
+            document.getElementById('perfil').disabled = true;
+            document.getElementById('areaNotificaciones').disabled = true;
+            document.getElementById('btnGuardarUsuario').disabled = true;
         });
 
         function limpiarPagina() {
-            document.getElementById('filtroArea').selectedIndex = 0;
             document.getElementById('filtroPerfil').selectedIndex = 0;
             document.getElementById('buscarUsuario').value = '';
             

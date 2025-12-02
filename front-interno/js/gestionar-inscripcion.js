@@ -561,7 +561,7 @@ function initializeApp() {
     if (userName.toLowerCase() === 'adminsief') {
       tipoUsuario = 'Administrador SIEF';
     } else if (userPerfil) {
-      tipoUsuario = userPerfil;
+      tipoUsuario = userPerfil === 'Profesional DOT' ? 'Jefe / Profesional DOT' : userPerfil;
     } else if (userAreaName) {
       departamento = userAreaName;
     } else {

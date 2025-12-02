@@ -166,7 +166,7 @@
                     tipoUsuario = 'Administrador SIEF';
                 } else if (userPerfil) {
                     // Usar el perfil real del usuario
-                    tipoUsuario = userPerfil;
+                    tipoUsuario = userPerfil === 'Profesional DOT' ? 'Jefe / Profesional DOT' : userPerfil;
                 } else if (userAreaName) {
                     // Fallback: usar la información del backend
                     departamento = userAreaName;

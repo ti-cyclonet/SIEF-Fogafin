@@ -445,9 +445,109 @@ namespace InscripcionEntidades
             };
         }
         
+        [Function("GestionarNotificaciones")]
+        public async Task<HttpResponseData> GestionarNotificaciones(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "usuarios/notificaciones")] HttpRequestData req)
+        {
+            _logger.LogInformation("Gestionando notificaciones de usuario");
+
+            try
+            {
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                var data = JsonSerializer.Deserialize<Dictionary<string, object>>(requestBody);
+
+                string usuario = data["TM03_Usuario"].ToString();
+                string codigoArea = data["TM03_TM02_Codigo"].ToString();
+                string nombre = data["TM03_Nombre"].ToString();
+                string correo = data["TM03_Correo"].ToString();
+                bool activarNotificaciones = bool.Parse(data["activarNotificaciones"].ToString());
+
+                string connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    if (activarNotificaciones)
+                    {
+                        // Verificar si ya existe
+                        string checkQuery = "SELECT COUNT(*) FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] WHERE [TM03_Usuario] = @usuario";
+                        using (var checkCmd = new SqlCommand(checkQuery, connection))
+                        {
+                            checkCmd.Parameters.AddWithValue("@usuario", usuario);
+                            int exists = (int)await checkCmd.ExecuteScalarAsync();
+
+                            if (exists == 0)
+                            {
+                                // Insertar nuevo registro
+                                string insertQuery = @"
+                                    INSERT INTO [SIIR-ProdV1].[dbo].[TM03_Usuario] 
+                                    ([TM03_Usuario], [TM03_TM02_Codigo], [TM03_Nombre], [TM03_Correo])
+                                    VALUES (@usuario, @codigoArea, @nombre, @correo)";
+
+                                using (var insertCmd = new SqlCommand(insertQuery, connection))
+                                {
+                                    insertCmd.Parameters.AddWithValue("@usuario", usuario);
+                                    insertCmd.Parameters.AddWithValue("@codigoArea", codigoArea);
+                                    insertCmd.Parameters.AddWithValue("@nombre", nombre);
+                                    insertCmd.Parameters.AddWithValue("@correo", correo);
+                                    await insertCmd.ExecuteNonQueryAsync();
+                                }
+                            }
+                            else
+                            {
+                                // Actualizar registro existente
+                                string updateQuery = @"
+                                    UPDATE [SIIR-ProdV1].[dbo].[TM03_Usuario] 
+                                    SET [TM03_TM02_Codigo] = @codigoArea, [TM03_Nombre] = @nombre, [TM03_Correo] = @correo
+                                    WHERE [TM03_Usuario] = @usuario";
+
+                                using (var updateCmd = new SqlCommand(updateQuery, connection))
+                                {
+                                    updateCmd.Parameters.AddWithValue("@codigoArea", codigoArea);
+                                    updateCmd.Parameters.AddWithValue("@nombre", nombre);
+                                    updateCmd.Parameters.AddWithValue("@correo", correo);
+                                    updateCmd.Parameters.AddWithValue("@usuario", usuario);
+                                    await updateCmd.ExecuteNonQueryAsync();
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Eliminar registro de notificaciones
+                        string deleteQuery = "DELETE FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] WHERE [TM03_Usuario] = @usuario";
+                        using (var deleteCmd = new SqlCommand(deleteQuery, connection))
+                        {
+                            deleteCmd.Parameters.AddWithValue("@usuario", usuario);
+                            await deleteCmd.ExecuteNonQueryAsync();
+                        }
+                    }
+
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    response.Headers.Add("Content-Type", "application/json");
+                    var resultado = new { 
+                        success = true, 
+                        message = activarNotificaciones ? "Usuario activado para notificaciones" : "Usuario desactivado de notificaciones" 
+                    };
+                    await response.WriteStringAsync(JsonSerializer.Serialize(resultado));
+                    return response;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al gestionar notificaciones");
+                var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                errorResponse.Headers.Add("Content-Type", "application/json");
+                var error = new { success = false, message = "Error al gestionar notificaciones: " + ex.Message };
+                await errorResponse.WriteStringAsync(JsonSerializer.Serialize(error));
+                return errorResponse;
+            }
+        }
+
         private bool IsValidPerfil(string perfil)
         {
-            var validPerfiles = new[] { "Consulta", "Profesional DOT", "Jefe SSD", "Profesional SSD" };
+            var validPerfiles = new[] { "Consulta", "Profesional DOT", "Jefe SSD", "Profesional SSD", "Jefe / Profesional DOT" };
             return validPerfiles.Contains(perfil);
         }
     }
