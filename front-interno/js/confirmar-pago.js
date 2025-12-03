@@ -33,7 +33,7 @@ async function confirmarPago() {
     const currentUser = localStorage.getItem('currentUser');
     const funcionario = currentUser ? currentUser.replace(/\./g, '') : '';
     
-    const response = await fetch(`${API_BASE_URL}ConfirmarPago`, {
+    const response = await fetch(getApiUrl('ConfirmarPago'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

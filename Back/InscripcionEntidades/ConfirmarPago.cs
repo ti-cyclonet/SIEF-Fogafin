@@ -63,17 +63,14 @@ namespace InscripcionEntidades
                             }
                         }
 
-                        // Obtener correos del SSD (59030)
+                        // Obtener correos del SSD (59030) desde TM03_Usuario
                         List<string> correosSSD = new();
                         string correosSSDQuery = @"
-                            SELECT DISTINCT r.TM04_EMail
-                            FROM [SistemasComunes].[dbo].[TM04_Responsables] r
-                            INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
-                            WHERE c.TM15_TM12_TM01_Codigo = 17 AND c.TM15_TM12_Ambiente = 'PROD' 
-                            AND r.TM04_TM03_Codigo = 59030 
-                            AND r.TM04_Activo = 1 
-                            AND r.TM04_EMail IS NOT NULL 
-                            AND r.TM04_EMail != ''";
+                            SELECT DISTINCT TM03_Correo
+                            FROM [SIIR-ProdV1].[dbo].[TM03_Usuario]
+                            WHERE TM03_TM02_Codigo = '59030' 
+                            AND TM03_Correo IS NOT NULL 
+                            AND TM03_Correo != ''";
 
                         using (var command = new SqlCommand(correosSSDQuery, connection))
                         {

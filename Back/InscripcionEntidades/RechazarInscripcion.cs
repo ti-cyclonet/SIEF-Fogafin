@@ -131,13 +131,11 @@ namespace InscripcionEntidades
                                 }
                             }
                             
-                            // Obtener correos de usuarios habilitados en SIEF
+                            // Obtener correos de usuarios habilitados en SIEF desde TM03_Usuario
                             string getUsuariosSiefQuery = @"
-                                SELECT DISTINCT r.TM04_EMail
-                                FROM [SistemasComunes].[dbo].[TM04_Responsables] r
-                                INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
-                                WHERE c.TM15_TM12_TM01_Codigo = 17 AND c.TM15_TM12_Ambiente = 'PROD' 
-                                AND r.TM04_Activo = 1 AND r.TM04_EMail IS NOT NULL AND r.TM04_EMail != ''";
+                                SELECT DISTINCT TM03_Correo
+                                FROM [SIIR-ProdV1].[dbo].[TM03_Usuario]
+                                WHERE TM03_Correo IS NOT NULL AND TM03_Correo != ''";
                             
                             using (var command = new SqlCommand(getUsuariosSiefQuery, connection, transaction))
                             {
@@ -145,7 +143,7 @@ namespace InscripcionEntidades
                                 {
                                     while (await reader.ReadAsync())
                                     {
-                                        var email = reader["TM04_EMail"]?.ToString();
+                                        var email = reader["TM03_Correo"]?.ToString();
                                         if (!string.IsNullOrEmpty(email))
                                         {
                                             destinatarios.Add(email);
