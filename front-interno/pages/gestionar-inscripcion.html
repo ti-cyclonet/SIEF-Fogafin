@@ -17,7 +17,7 @@
     <style>
       .gestion-container {
         max-width: 1200px;
-        margin: 40px auto;
+        margin: 40px auto 10px auto;
         padding: 30px;
         background-color: white;
         border-radius: 10px;
@@ -42,7 +42,7 @@
         background-color: #eee;
       }
       .header-bg {
-        background: linear-gradient(135deg, #2e7d32 0%, #007bff 100%) !important;
+        background-color: #1e5aa8 !important;
       }
       .btn-outline-light:hover {
         background-color: #007bff;
@@ -81,15 +81,15 @@
     </style>
   </head>
   <body class="bg-light">
+    <div id="header"></div>
     <div class="header-bg bg-primary text-white py-3">
         <div class="container d-flex justify-content-between align-items-center">
-            <h3>Gestión SIEF - Aplicativo Interno</h3>
+            <h3 class="text-white mb-0 ps-5">Gestión SIEF - Aplicativo Interno</h3>
             <div class="d-flex align-items-center">
-                <div class="me-3 text-end">
-                    <div><i class="fas fa-user-circle"></i> <span id="nombreFuncionario">Cargando...</span></div>
+                <div class="me-5 text-end">
+                    <div class="fw-bold"><i class="fas fa-user-circle me-1"></i><span id="nombreFuncionario">Cargando...</span></div>
                     <small class="text-light opacity-75" id="departamentoFuncionario">Cargando...</small>
                 </div>
-
             </div>
         </div>
     </div>
@@ -423,10 +423,21 @@
       </div>
     </div>
 
+    <div id="footer"></div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../config.js"></script>
     <script src="../js/confirmar-pago.js"></script>
     <script src="../js/aprobar-inscripcion.js"></script>
     <script src="../js/gestionar-inscripcion.js"></script>
+    <script>
+        fetch('https://sadevcarguefdi.z20.web.core.windows.net/header.html')
+            .then(res => res.text())
+            .then(html => document.getElementById('header').innerHTML = html);
+
+        fetch('https://sadevcarguefdi.z20.web.core.windows.net/footer.html')
+            .then(res => res.text())
+            .then(html => document.getElementById('footer').innerHTML = html);
+    </script>
   </body>
 </html>

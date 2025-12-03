@@ -159,7 +159,7 @@ async function cargarPagosExistentes(entidadId) {
       const valor = formatearMonedaConDecimales(extracto.valor);
       
       const linkArchivo = extracto.archivo ? 
-        `<a href="#" class="text-primary" onclick="descargarArchivoDirecto('${extracto.archivo}')">Ver archivo</a>` :
+        `<a href="${getApiUrl(`DescargarArchivo?url=${encodeURIComponent(extracto.archivo)}&inline=1`)}" target="_blank" class="text-primary">Ver archivo</a>` :
         'No disponible';
       
       newRow.innerHTML = `<td>${fecha}</td><td>${valor}</td><td>${linkArchivo}</td>`;
@@ -186,13 +186,11 @@ async function cargarDocumentosAdicionalesPago(entidadId) {
     documentosAdicionalesPago.forEach((archivo, index) => {
       const newRow = document.createElement('tr');
       const link = document.createElement('a');
-      link.href = '#';
+      const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(archivo)}&inline=1`);
+      link.href = downloadUrl;
+      link.target = '_blank';
       link.className = 'text-primary';
       link.textContent = 'Ver archivo';
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
-        descargarArchivoDirecto(archivo);
-      });
       
       const td1 = document.createElement('td');
       td1.className = 'fw-bold';
@@ -372,13 +370,11 @@ function configurarLinksArchivos(archivos, rutaComprobantePago = null, entidadId
     documentosAdicionales.forEach((archivo, index) => {
       const newRow = document.createElement('tr');
       const link = document.createElement('a');
-      link.href = '#';
+      const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(archivo)}&inline=1`);
+      link.href = downloadUrl;
+      link.target = '_blank';
       link.className = 'text-primary';
       link.textContent = 'Ver archivo';
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
-        descargarArchivoDirecto(archivo);
-      });
       
       const td1 = document.createElement('td');
       td1.className = 'fw-bold';
@@ -1128,13 +1124,11 @@ function agregarArchivoVisualmente(nombreArchivo, url) {
   const existingDocs = tablaDocumentos.children.length;
   const newRow = document.createElement('tr');
   const link = document.createElement('a');
-  link.href = '#';
+  const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(url)}&inline=1`);
+  link.href = downloadUrl;
+  link.target = '_blank';
   link.className = 'text-primary';
   link.textContent = 'Ver archivo';
-  link.addEventListener('click', (e) => {
-    e.preventDefault();
-    descargarArchivoDirecto(url);
-  });
   
   const td1 = document.createElement('td');
   td1.className = 'fw-bold';
@@ -1191,13 +1185,11 @@ function agregarArchivoVisualmentePago(nombreArchivo, url) {
   const existingDocs = tablaDocumentos.children.length;
   const newRow = document.createElement('tr');
   const link = document.createElement('a');
-  link.href = '#';
+  const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(url)}&inline=1`);
+  link.href = downloadUrl;
+  link.target = '_blank';
   link.className = 'text-primary';
   link.textContent = 'Ver archivo';
-  link.addEventListener('click', (e) => {
-    e.preventDefault();
-    descargarArchivoDirecto(url);
-  });
   
   const td1 = document.createElement('td');
   td1.className = 'fw-bold';

@@ -358,8 +358,8 @@
           <button type="submit" class="btn btn-primary">
             Enviar solicitud
           </button>
-          <a href="../index.html" class="btn btn-secondary">Volver</a>
-          <button type="button" id="btnConsultar" class="btn btn-success">
+          <a href="../index.html" class="btn btn-secondary text-white">Volver</a>
+          <button type="button" id="btnConsultar" class="btn btn-success d-none">
             Consultar
           </button>
         </div>
@@ -370,6 +370,15 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="../config.js"></script>
+    <script>
+      fetch('https://sadevcarguefdi.z20.web.core.windows.net/header.html')
+        .then(res => res.text())
+        .then(html => document.getElementById('header').innerHTML = html);
+
+      fetch('https://sadevcarguefdi.z20.web.core.windows.net/footer.html')
+        .then(res => res.text())
+        .then(html => document.getElementById('footer').innerHTML = html);
+    </script>
 
     <script>
       const URL_REGISTRAR = getApiUrl("RegistrarEntidad");
