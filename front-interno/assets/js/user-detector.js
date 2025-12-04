@@ -6,9 +6,6 @@ class UserDetector {
     static init() {
         // Verificar si hay usuario en la URL al cargar la página
         this.checkURLUser();
-        
-        // Agregar botón para configurar usuario manualmente
-        this.addUserConfigButton();
     }
     
     static checkURLUser() {
@@ -27,37 +24,43 @@ class UserDetector {
         }
     }
     
-    static addUserConfigButton() {
-        // Solo agregar en la página de login
-        if (window.location.pathname.includes('index.html') || window.location.pathname.endsWith('/interno/')) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'btn btn-link btn-sm mt-2';
-            button.innerHTML = '<i class="fas fa-user-cog"></i> Configurar usuario automático';
-            button.onclick = this.configureUser;
-            
-            // Insertar después del formulario de login
-            const form = document.getElementById('loginForm');
-            if (form) {
-                form.parentNode.insertBefore(button, form.nextSibling);
-            }
-        }
-    }
+
     
-    static configureUser() {
+    static async configureUser() {
         const currentUser = localStorage.getItem('detectedWindowsUser') || '';
-        const newUser = prompt('Ingrese su usuario de Windows para acceso automático:', currentUser);
+        
+        const { value: newUser } = await Swal.fire({
+            title: 'Configurar Usuario Automático',
+            input: 'text',
+            inputLabel: 'Ingrese su usuario de Windows para acceso automático:',
+            inputPlaceholder: 'ej: AlfredoMamby',
+            inputValue: currentUser,
+            showCancelButton: true,
+            confirmButtonText: 'Configurar',
+            cancelButtonText: 'Cancelar'
+        });
         
         if (newUser && newUser.trim()) {
-            localStorage.setItem('detectedWindowsUser', newUser.trim().toLowerCase());
-            localStorage.removeItem('userPromptShown'); // Permitir que se use el nuevo usuario
+            const cleanUser = newUser.trim().toLowerCase();
+            localStorage.setItem('detectedWindowsUser', cleanUser);
+            localStorage.removeItem('userPromptShown');
             
-            alert('Usuario configurado correctamente. La próxima vez se usará automáticamente.');
+            Swal.fire({
+                icon: 'success',
+                title: 'Usuario Configurado',
+                text: `Usuario ${cleanUser} configurado correctamente`,
+                timer: 2000,
+                showConfirmButton: false
+            });
             
-            // Actualizar el campo de usuario si existe
+            // Actualizar el campo de usuario y etiqueta si existen
             const inputUsuario = document.getElementById('inputUsuario');
+            const usuarioLabel = document.getElementById('usuarioLabel');
             if (inputUsuario) {
-                inputUsuario.value = newUser.trim().toLowerCase();
+                inputUsuario.value = cleanUser;
+            }
+            if (usuarioLabel) {
+                usuarioLabel.textContent = cleanUser;
             }
         }
     }

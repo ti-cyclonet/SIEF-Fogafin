@@ -98,6 +98,11 @@
                 <div class="me-5 text-end">
                     <div class="fw-bold"><i class="fas fa-user-circle me-1"></i><span id="nombreFuncionario">Cargando...</span></div>
                     <small class="text-light opacity-75" id="departamentoFuncionario">Cargando...</small>
+                    <div class="mt-1">
+                        <a href="#" class="text-light" style="font-size: 0.75em; text-decoration: none;" onclick="resetUserConfig(); return false;">
+                            <i class="fas fa-trash me-1"></i>Resetear usuario
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -174,19 +179,7 @@
                 let tipoUsuario = 'Funcionario';
                 let departamento = '';
                 
-                if (userName.toLowerCase() === 'adminsief') {
-                    // Bloquear acceso a AdminSief
-                    Swal.fire({
-                        title: 'Acceso Denegado',
-                        text: 'El usuario AdminSief ya no tiene acceso al sistema.',
-                        icon: 'error',
-                        confirmButtonText: 'Aceptar'
-                    }).then(() => {
-                        localStorage.clear();
-                        window.location.href = '../index.html';
-                    });
-                    return;
-                } else if (userPerfil) {
+                if (userPerfil) {
                     // Usar el perfil real del usuario
                     tipoUsuario = userPerfil === 'Profesional DOT' ? 'Jefe / Profesional DOT' : userPerfil;
                 } else if (userAreaName) {
@@ -208,7 +201,6 @@
                 departamentoSpan.textContent = userPerfil ? tipoUsuario : (departamento ? `${tipoUsuario} ${departamento}` : tipoUsuario);
                 
                 // Controlar acceso a opciones del menú
-                const isAdmin = userName.toLowerCase() === 'adminsief';
                 const isJefeSSD = userPerfil === 'Jefe SSD';
                 const isConsulta = userPerfil === 'Consulta';
                 
@@ -217,7 +209,7 @@
                 const tileGestionUsuarios = document.getElementById('tileGestionUsuarios');
                 
                 // Para usuarios de solo consulta: solo mostrar "Consultar Entidades" centrado
-                if (isConsulta && !isAdmin) {
+                if (isConsulta) {
                     if (tileGestionarInscripcion) tileGestionarInscripcion.classList.add('tile-hidden');
                     if (tileGestionUsuarios) tileGestionUsuarios.classList.add('tile-hidden');
                     // Centrar la única opción disponible
@@ -226,8 +218,8 @@
                     menuContainer.classList.add('justify-content-center');
                 }
                 
-                // Gestión de usuarios solo para admin y jefe SSD
-                if (!isAdmin && !isJefeSSD) {
+                // Gestión de usuarios solo para jefe SSD
+                if (!isJefeSSD) {
                     if (tileGestionUsuarios) tileGestionUsuarios.classList.add('tile-hidden');
                 }
             } else {
@@ -237,6 +229,40 @@
             
 
         });
+        
+        // Función para resetear configuración de usuario automático
+        async function resetUserConfig() {
+            const result = await Swal.fire({
+                title: '¿Está seguro?',
+                text: '¿Desea resetear la configuración de usuario automático?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, resetear',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#d33'
+            });
+            
+            if (result.isConfirmed) {
+                // Limpiar todas las variables de sesión
+                localStorage.removeItem('detectedWindowsUser');
+                localStorage.removeItem('userConfigured');
+                localStorage.removeItem('userPromptShown');
+                localStorage.removeItem('currentUser');
+                localStorage.removeItem('userArea');
+                localStorage.removeItem('userAreaName');
+                localStorage.removeItem('userPerfil');
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Configuración Reseteada',
+                    text: 'Redirigiendo al login...',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.href = '../index.html';
+                });
+            }
+        }
     </script>
 </body>
 </html>

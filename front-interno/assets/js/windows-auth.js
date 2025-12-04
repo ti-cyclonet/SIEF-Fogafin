@@ -7,7 +7,7 @@ class WindowsAuthHelper {
         try {
             // Método 1: Desde localStorage (persistencia)
             const usuarioGuardado = localStorage.getItem('detectedWindowsUser');
-            if (usuarioGuardado && usuarioGuardado !== 'adminSief') {
+            if (usuarioGuardado) {
                 return usuarioGuardado;
             }
 
@@ -33,17 +33,17 @@ class WindowsAuthHelper {
             }
 
             // Método 5: Prompt al usuario (solo una vez)
-            const usuarioPrompt = this.obtenerConPrompt();
+            const usuarioPrompt = await this.obtenerConPrompt();
             if (usuarioPrompt) {
                 localStorage.setItem('detectedWindowsUser', usuarioPrompt);
                 return usuarioPrompt;
             }
 
-            return 'adminSief';
+            return null;
             
         } catch (error) {
             console.warn('Error obteniendo usuario:', error);
-            return 'adminSief';
+            return null;
         }
     }
 
@@ -87,7 +87,7 @@ class WindowsAuthHelper {
         return params.get('user') || params.get('username');
     }
 
-    static obtenerConPrompt() {
+    static async obtenerConPrompt() {
         // Solo preguntar si no se ha preguntado antes
         const yaPreguntoUsuario = localStorage.getItem('userPromptShown');
         if (yaPreguntoUsuario) {
@@ -95,11 +95,20 @@ class WindowsAuthHelper {
         }
 
         try {
-            const usuario = prompt('Por favor ingrese su usuario de Windows para acceso automático:');
-            localStorage.setItem('userPromptShown', 'true');
-            
-            if (usuario && usuario.trim() && usuario.trim() !== '') {
-                return usuario.trim().toLowerCase();
+            if (typeof Swal !== 'undefined') {
+                const { value: usuario } = await Swal.fire({
+                    title: 'Configuración Inicial',
+                    input: 'text',
+                    inputLabel: 'Ingrese su usuario de Windows para acceso automático:',
+                    showCancelButton: false,
+                    allowOutsideClick: false,
+                    confirmButtonText: 'Continuar'
+                });
+                localStorage.setItem('userPromptShown', 'true');
+                
+                if (usuario && usuario.trim() && usuario.trim() !== '') {
+                    return usuario.trim().toLowerCase();
+                }
             }
             return null;
         } catch (error) {
@@ -116,7 +125,7 @@ class WindowsAuthHelper {
             let headers = { 'Accept': 'text/plain' };
             
             // Si hay usuario local, enviarlo al backend
-            if (usuarioLocal && usuarioLocal !== 'adminSief') {
+            if (usuarioLocal) {
                 params.user = usuarioLocal;
                 headers['X-User-Identity'] = usuarioLocal;
             }
@@ -156,11 +165,11 @@ class WindowsAuthHelper {
                 }
             }
 
-            return usuario || 'adminSief';
+            return usuario || null;
             
         } catch (error) {
             console.error('Error en inicio automático:', error);
-            return 'adminSief';
+            return null;
         }
     }
 }

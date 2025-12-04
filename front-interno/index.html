@@ -29,20 +29,11 @@
 
       <form id="loginForm">
         <div class="mb-3">
-          <div class="input-group">
-            <input
-              type="text"
-              class="form-control"
-              placeholder="Usuario"
-              id="inputUsuario"
-              autocomplete="off"
-              required
-            />
-            <button class="btn btn-outline-secondary" type="button" id="btnEditarUsuario" title="Editar usuario">
-              <i class="fas fa-edit"></i>
-            </button>
+          <div class="text-center">
+            <label class="form-label">Usuario:</label>
+            <div class="fw-bold text-primary" id="usuarioLabel">No configurado</div>
           </div>
-
+          <input type="hidden" id="inputUsuario" required />
         </div>
 
 
@@ -63,20 +54,10 @@
           <i class="fas fa-sign-in-alt me-2"></i> Ingresar
         </button>
 
-        <a href="#" class="d-block mt-3 text-muted" style="font-size: 0.9em">
-          ¿Ha olvidado su contraseña?
+        <a href="#" class="d-block mt-3 text-primary" style="font-size: 0.9em" onclick="configureUser(); return false;">
+          <i class="fas fa-user-cog me-1"></i> Configurar usuario automático
         </a>
-        
-        <button type="button" class="btn btn-sm btn-outline-info mt-2" onclick="testUserDetection()">
-          🔍 Test Usuario
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-warning mt-2" onclick="detectRealUser()">
-          🔄 Detectar Usuario Real
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-success mt-2" onclick="configureUser()">
-          ⚙️ Configurar Usuario
-        </button>
-        <div id="debugInfo" class="mt-2 small text-muted"></div>
+        <!-- <div id="debugInfo" class="mt-2 small text-muted"></div> -->
       </form>
     </div>
 
@@ -92,34 +73,36 @@
           const usuario = await WindowsAuthHelper.iniciarSesionAutomatica();
           
           // Fallback al backend si no se obtuvo usuario
-          if (!usuario || usuario === 'adminSief') {
+          if (!usuario) {
             try {
               // Obtener usuario detectado localmente
               const usuarioLocal = localStorage.getItem('detectedWindowsUser');
-              let params = {};
-              let headers = { 'Accept': 'text/plain' };
               
-              // Si hay usuario local, enviarlo al backend
-              if (usuarioLocal && usuarioLocal !== 'adminSief') {
-                params.user = usuarioLocal;
-                headers['X-User-Identity'] = usuarioLocal;
-              }
-              
-              const url = getApiUrl('whoami', params);
-              
-              const response = await fetch(url, {
-                method: 'GET',
-                credentials: 'include',
-                headers: headers
-              });
-              
-              if (response.ok) {
-                const usuarioBackend = await response.text();
-                return usuarioBackend.trim();
+              // Solo proceder si hay usuario local válido
+              if (usuarioLocal) {
+                const params = { user: usuarioLocal };
+                const headers = { 
+                  'Accept': 'text/plain',
+                  'X-User-Identity': usuarioLocal
+                };
+                
+                const url = getApiUrl('whoami', params);
+                
+                const response = await fetch(url, {
+                  method: 'GET',
+                  credentials: 'include',
+                  headers: headers
+                });
+                
+                if (response.ok) {
+                  const usuarioBackend = await response.text();
+                  return usuarioBackend.trim();
+                }
               }
             } catch (error) {
               console.warn('Error obteniendo usuario desde backend:', error);
             }
+            return null;
           }
           
           return usuario;
@@ -127,7 +110,7 @@
 
         static async intentarLoginAutomatico() {
           const usuario = await this.obtenerUsuarioWindows();
-          if (usuario && usuario !== 'adminSief') {
+          if (usuario && usuario.trim() !== '') {
             // Validar usuario antes de permitir login automático
             const validacion = await validarUsuarioResponsable(usuario);
             if (validacion && validacion.esValido) {
@@ -162,9 +145,7 @@
             await autoDetectAndConfigureUser();
           }
           
-          // Ocultar botones de debug siempre
-          const debugButtons = document.querySelectorAll('button[onclick*="test"], button[onclick*="detect"], button[onclick*="configure"]');
-          debugButtons.forEach(btn => btn.style.display = 'none');
+
           
           // Verificar si se debe omitir login automático
           const params = new URLSearchParams(window.location.search);
@@ -195,48 +176,23 @@
             return;
           }
           
-          // Si no hay login automático, mostrar formulario con usuario obtenido
-          const response = await fetch(getApiUrl('whoami'));
-          if (response.ok) {
-            const usuario = await response.text();
-            const inputUsuario = document.getElementById('inputUsuario');
-            inputUsuario.value = usuario.trim();
-            inputUsuario.readOnly = true;
-            inputUsuario.classList.add('text-muted');
-            inputUsuario.style.backgroundColor = '#f8f9fa';
+          // Si no hay login automático, mostrar usuario configurado
+          const inputUsuario = document.getElementById('inputUsuario');
+          const usuarioLabel = document.getElementById('usuarioLabel');
+          const usuarioDetectado = localStorage.getItem('detectedWindowsUser');
+          
+          if (usuarioDetectado) {
+            inputUsuario.value = usuarioDetectado;
+            usuarioLabel.textContent = usuarioDetectado;
+          } else {
+            inputUsuario.value = '';
+            usuarioLabel.textContent = 'No configurado';
           }
         } catch (error) {
           // Silencioso - mostrar formulario normal
         }
         
-        // Evento para alternar modo de edición
-        document.getElementById('btnEditarUsuario').addEventListener('click', function() {
-          const inputUsuario = document.getElementById('inputUsuario');
-          const modoTexto = document.getElementById('modoUsuario');
-          const btnIcon = this.querySelector('i');
-          
-          if (modoAutomatico) {
-            // Cambiar a modo manual
-            inputUsuario.readOnly = false;
-            inputUsuario.classList.remove('text-muted');
-            inputUsuario.style.backgroundColor = '';
-            inputUsuario.focus();
-            inputUsuario.select();
 
-            btnIcon.className = 'fas fa-undo';
-            this.title = 'Volver a modo automático';
-            modoAutomatico = false;
-          } else {
-            // Volver a modo automático
-            inputUsuario.readOnly = true;
-            inputUsuario.classList.add('text-muted');
-            inputUsuario.style.backgroundColor = '#f8f9fa';
-
-            btnIcon.className = 'fas fa-edit';
-            this.title = 'Editar usuario';
-            modoAutomatico = true;
-          }
-        });
       });
       
       // Validación de usuario en tabla TM04_Responsables
@@ -376,7 +332,7 @@
           debugDiv.innerHTML += `Usuario detectado: <strong>${usuarioReal}</strong><br>`;
           
           // 3. Probar con el backend
-          if (usuarioReal && usuarioReal !== 'adminSief') {
+          if (usuarioReal) {
             const params = { user: usuarioReal };
             const url = getApiUrl('whoami', params);
             
@@ -411,23 +367,44 @@
         }
         
         // Configurar usuario manualmente
-        function configureUser() {
+        async function configureUser() {
           const currentUser = localStorage.getItem('detectedWindowsUser') || '';
-          const newUser = prompt('Ingrese su usuario de Windows (ej: AlfredoMamby):', currentUser);
+          
+          const { value: newUser } = await Swal.fire({
+            title: 'Configurar Usuario Automático',
+            input: 'text',
+            inputLabel: 'Ingrese su usuario de Windows para acceso automático:',
+            inputValue: currentUser,
+            showCancelButton: true,
+            confirmButtonText: 'Configurar',
+            cancelButtonText: 'Cancelar'
+          });
           
           if (newUser && newUser.trim()) {
             const cleanUser = newUser.trim().toLowerCase();
             localStorage.setItem('detectedWindowsUser', cleanUser);
             
-            // Actualizar campo de usuario
+            // Actualizar campo de usuario y etiqueta
             const inputUsuario = document.getElementById('inputUsuario');
+            const usuarioLabel = document.getElementById('usuarioLabel');
             if (inputUsuario) {
               inputUsuario.value = cleanUser;
+            }
+            if (usuarioLabel) {
+              usuarioLabel.textContent = cleanUser;
             }
             
             const debugDiv = document.getElementById('debugInfo');
             debugDiv.innerHTML = `<span style="color: green;">✅ Usuario configurado: <strong>${cleanUser}</strong></span><br>`;
             debugDiv.innerHTML += 'La próxima vez se usará automáticamente.';
+            
+            Swal.fire({
+              icon: 'success',
+              title: 'Usuario Configurado',
+              text: `Usuario ${cleanUser} configurado correctamente`,
+              timer: 2000,
+              showConfirmButton: false
+            });
           }
         }
         
@@ -456,8 +433,16 @@
               const isLocal = hostname === 'localhost' || hostname.includes('.local');
               
               if (!isLocal) {
-                // En nube, usar prompt una sola vez
-                usuarioDetectado = prompt('Para configuración inicial, ingrese su usuario de Windows:');
+                // En nube, usar SweetAlert2 una sola vez
+                const { value: usuario } = await Swal.fire({
+                  title: 'Configuración Inicial',
+                  input: 'text',
+                  inputLabel: 'Ingrese su usuario de Windows para acceso automático:',
+                  showCancelButton: false,
+                  allowOutsideClick: false,
+                  confirmButtonText: 'Continuar'
+                });
+                usuarioDetectado = usuario;
               }
             }
             
@@ -482,13 +467,14 @@
                   localStorage.setItem('userPerfil', isValid.perfil);
                 }
                 
-                // Actualizar campo de usuario
+                // Actualizar campo de usuario y etiqueta
                 const inputUsuario = document.getElementById('inputUsuario');
+                const usuarioLabel = document.getElementById('usuarioLabel');
                 if (inputUsuario) {
                   inputUsuario.value = cleanUser;
-                  inputUsuario.readOnly = true;
-                  inputUsuario.classList.add('text-muted');
-                  inputUsuario.style.backgroundColor = '#f8f9fa';
+                }
+                if (usuarioLabel) {
+                  usuarioLabel.textContent = cleanUser;
                 }
                 
                 console.log(`Usuario ${cleanUser} validado y configurado automáticamente`);
@@ -502,12 +488,28 @@
         }
         
         // Función para resetear configuración (solo para admin)
-        function resetUserConfig() {
-          if (confirm('¿Está seguro de que desea resetear la configuración de usuario?')) {
+        async function resetUserConfig() {
+          const result = await Swal.fire({
+            title: '¿Está seguro?',
+            text: '¿Desea resetear la configuración de usuario?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, resetear',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#d33'
+          });
+          
+          if (result.isConfirmed) {
             localStorage.removeItem('detectedWindowsUser');
             localStorage.removeItem('userConfigured');
             localStorage.removeItem('userPromptShown');
-            alert('Configuración reseteada. Recargue la página.');
+            
+            Swal.fire({
+              icon: 'success',
+              title: 'Configuración Reseteada',
+              text: 'Recargue la página para aplicar los cambios',
+              confirmButtonText: 'Aceptar'
+            });
           }
         }
     </script>
