@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using Microsoft.Data.SqlClient;
 using System.Text.Json;
+using System.Text;
+using Newtonsoft.Json;
 
 namespace InscripcionEntidades
 {
@@ -107,11 +109,22 @@ Departamento de Sistema de Seguro de Depósitos
 Fondo de Garantías de Instituciones Financieras – Fogafín
 PBX: 601 4321370 extensiones 255 - 142";
 
+                        // Filtrar correos para no enviar temporalmente a @fogafin.gov.co
+                        var destinatariosFiltrados = destinatarios.Where(email => !email.EndsWith("@fogafin.gov.co")).ToList();
+                        
                         _logger.LogInformation("=== NOTIFICACIÓN DE CORREO ===");
-                        _logger.LogInformation($"Destinatarios: {string.Join(", ", destinatarios)}");
+                        _logger.LogInformation($"Destinatarios originales: {string.Join(", ", destinatarios)}");
+                        _logger.LogInformation($"Destinatarios filtrados: {string.Join(", ", destinatariosFiltrados)}");
                         _logger.LogInformation($"Asunto: {asunto}");
                         _logger.LogInformation($"Cuerpo del mensaje:\n{cuerpo}");
                         _logger.LogInformation("==============================");
+
+                        // Enviar correo usando microservicio centralizado
+                        if (destinatariosFiltrados.Any())
+                        {
+                            bool correoEnviado = await EnviarCorreoAsync(destinatariosFiltrados, asunto, cuerpo, entidadId, numeroTramite);
+                            _logger.LogInformation($"Correo enviado: {correoEnviado}");
+                        }
 
                         // Eliminar registros de TM61_ENTIDADES_NOTIFICACION para evitar conflictos FK
                         string deleteNotificacionesQuery = @"
@@ -158,26 +171,12 @@ PBX: 601 4321370 extensiones 255 - 142";
                             await command2.ExecuteNonQueryAsync();
                         }
 
-                        // Registrar en log de correos
-                        string insertLogQuery = @"
-                            INSERT INTO [SIIR-ProdV1].[dbo].[TM80_LOG_CORREOS]
-                            (TM80_TM02_CODIGO, TM80_NUMERO_TRAMITE, TM80_DESTINATARIOS, TM80_ASUNTO, TM80_CUERPO, TM80_TIPO_CORREO, TM80_ESTADO_ENVIO, TM80_FECHA_ENVIO)
-                            VALUES (@entidadId, @numeroTramite, @destinatarios, @asunto, @cuerpo, 'APROBACION_DOCUMENTOS', 'SIMULADO', GETDATE())";
 
-                        using (var command = new SqlCommand(insertLogQuery, connection))
-                        {
-                            command.Parameters.AddWithValue("@entidadId", entidadId);
-                            command.Parameters.AddWithValue("@numeroTramite", numeroTramite);
-                            command.Parameters.AddWithValue("@destinatarios", string.Join(";", destinatarios));
-                            command.Parameters.AddWithValue("@asunto", asunto);
-                            command.Parameters.AddWithValue("@cuerpo", cuerpo);
-                            await command.ExecuteNonQueryAsync();
-                        }
                     }
 
                     var response = req.CreateResponse(HttpStatusCode.OK);
                     response.Headers.Add("Content-Type", "application/json");
-                    await response.WriteStringAsync(JsonSerializer.Serialize(new { success = true, message = "Documentos aprobados correctamente" }));
+                    await response.WriteStringAsync(System.Text.Json.JsonSerializer.Serialize(new { success = true, message = "Documentos aprobados correctamente" }));
                     return response;
                 }
             }
@@ -188,6 +187,73 @@ PBX: 601 4321370 extensiones 255 - 142";
                 var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
                 await errorResponse.WriteStringAsync("Error interno del servidor");
                 return errorResponse;
+            }
+        }
+
+        private async Task<bool> EnviarCorreoAsync(List<string> destinatarios, string asunto, string cuerpo, int entidadId, string numeroTramite)
+        {
+            try
+            {
+                string baseUrl = Environment.GetEnvironmentVariable("CENTRALIZED_EMAIL_URL") ?? "https://app-correo-centralizado-dev-bfbrcqgdgfbbaxhq.eastus2-01.azurewebsites.net";
+                string apiKey = Environment.GetEnvironmentVariable("CENTRALIZED_EMAIL_API_KEY") ?? "envioCorreo-2025";
+
+                using var httpClient = new HttpClient { BaseAddress = new Uri(baseUrl) };
+                httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
+
+                var emailBody = new
+                {
+                    to = destinatarios,
+                    subject = asunto,
+                    htmlBody = $"<p>{cuerpo.Replace("\n", "<br>")}</p>",
+                    textBody = cuerpo,
+                    priority = "normal"
+                };
+
+                string jsonBody = JsonConvert.SerializeObject(emailBody);
+                var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+
+                var response = await httpClient.PostAsync("/api/email/send", content);
+                bool exitoso = response.IsSuccessStatusCode;
+
+                // Registrar en log
+                await RegistrarLogCorreoAsync(entidadId, numeroTramite, destinatarios, asunto, cuerpo, exitoso, response.ReasonPhrase);
+
+                return exitoso;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al enviar correo");
+                await RegistrarLogCorreoAsync(entidadId, numeroTramite, destinatarios, asunto, cuerpo, false, ex.Message);
+                return false;
+            }
+        }
+
+        private async Task RegistrarLogCorreoAsync(int entidadId, string numeroTramite, List<string> destinatarios, string asunto, string cuerpo, bool exitoso, string? error)
+        {
+            try
+            {
+                string connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+                using var connection = new SqlConnection(connectionString);
+                await connection.OpenAsync();
+
+                string insertLogQuery = @"
+                    INSERT INTO [SIIR-ProdV1].[dbo].[TM80_LOG_CORREOS]
+                    (TM80_TM02_CODIGO, TM80_NUMERO_TRAMITE, TM80_DESTINATARIOS, TM80_ASUNTO, TM80_CUERPO, TM80_TIPO_CORREO, TM80_ESTADO_ENVIO, TM80_FECHA_ENVIO, TM80_USUARIO, TM80_ERROR_DETALLE)
+                    VALUES (@entidadId, @numeroTramite, @destinatarios, @asunto, @cuerpo, 'APROBACION_DOCUMENTOS', @estado, GETDATE(), 'USUARIOWEB', @error)";
+
+                using var command = new SqlCommand(insertLogQuery, connection);
+                command.Parameters.AddWithValue("@entidadId", entidadId);
+                command.Parameters.AddWithValue("@numeroTramite", numeroTramite);
+                command.Parameters.AddWithValue("@destinatarios", string.Join(";", destinatarios));
+                command.Parameters.AddWithValue("@asunto", asunto);
+                command.Parameters.AddWithValue("@cuerpo", cuerpo.Length > 4000 ? cuerpo.Substring(0, 4000) : cuerpo);
+                command.Parameters.AddWithValue("@estado", exitoso ? "ENVIADO" : "ERROR");
+                command.Parameters.AddWithValue("@error", (object?)error ?? DBNull.Value);
+                await command.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al registrar log de correo");
             }
         }
     }

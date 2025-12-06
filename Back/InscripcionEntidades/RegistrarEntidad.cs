@@ -715,8 +715,9 @@ namespace InscripcionEntidades
             string? connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
             try
             {
-                string baseUrl = "https://fn-email-corp-dev-eus2-h5cjfbeud6h7axab.eastus2-01.azurewebsites.net";
-                string apiKey = Environment.GetEnvironmentVariable("EMAIL_API_KEY") ?? "dev-12345";
+                // Microservicio centralizado de correo
+                string baseUrl = Environment.GetEnvironmentVariable("CENTRALIZED_EMAIL_URL") ?? "https://app-correo-centralizado-dev-bfbrcqgdgfbbaxhq.eastus2-01.azurewebsites.net";
+                string apiKey = Environment.GetEnvironmentVariable("CENTRALIZED_EMAIL_API_KEY") ?? "envioCorreo-2025";
 
                 using var httpClient = new HttpClient { BaseAddress = new Uri(baseUrl) };
                 httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
@@ -736,7 +737,6 @@ namespace InscripcionEntidades
                     attachments.Add(new
                     {
                         fileName = Path.GetFileName(pdfPath),
-                        contentType = "application/pdf",
                         contentBase64 = base64Pdf
                     });
                 }
@@ -746,18 +746,21 @@ namespace InscripcionEntidades
                 string htmlBody = payloadObj["htmlBody"]?.ToString() ?? "<p>Registro completado</p>";
                 string destinatarios = string.Join(", ", toList);
 
+                // Formato del microservicio centralizado
                 var emailBody = new
                 {
                     to = toList,
                     subject = subject,
                     htmlBody = htmlBody,
+                    textBody = "Registro de entidad financiera completado",
+                    priority = "normal",
                     attachments = attachments
                 };
 
                 string jsonBody = JsonConvert.SerializeObject(emailBody, Formatting.None);
                 var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PostAsync("/api/send-email", content);
+                var response = await httpClient.PostAsync("/api/email/send", content);
                 string respContent = await response.Content.ReadAsStringAsync();
                 bool exitoso = response.IsSuccessStatusCode;
                 
