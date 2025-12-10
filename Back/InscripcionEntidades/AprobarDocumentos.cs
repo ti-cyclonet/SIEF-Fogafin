@@ -109,14 +109,12 @@ Departamento de Sistema de Seguro de Depósitos
 Fondo de Garantías de Instituciones Financieras – Fogafín
 PBX: 601 4321370 extensiones 255 - 142";
 
-                        // Filtrar correos para no enviar temporalmente a @fogafin.gov.co
-                        var destinatariosFiltrados = destinatarios.Where(email => !email.EndsWith("@fogafin.gov.co")).ToList();
+                        // Filtrar correos para no enviar únicamente a fogafin@fogafin.gov.co
+                        // var destinatariosFiltrados = destinatarios.Where(email => !email.EndsWith("@fogafin.gov.co")).ToList();
+                        var destinatariosFiltrados = destinatarios.Where(email => email != "fogafin@fogafin.gov.co").ToList();
                         
                         _logger.LogInformation("=== NOTIFICACIÓN DE CORREO ===");
-                        _logger.LogInformation($"Destinatarios originales: {string.Join(", ", destinatarios)}");
-                        _logger.LogInformation($"Destinatarios filtrados: {string.Join(", ", destinatariosFiltrados)}");
-                        _logger.LogInformation($"Asunto: {asunto}");
-                        _logger.LogInformation($"Cuerpo del mensaje:\n{cuerpo}");
+                        _logger.LogInformation($"Destinatarios para envío: {string.Join(", ", destinatariosFiltrados)}");
                         _logger.LogInformation("==============================");
 
                         // Enviar correo usando microservicio centralizado

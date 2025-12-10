@@ -365,91 +365,6 @@ namespace InscripcionEntidades
                         _logger.LogError(ex, "❌ ERROR EN CONSULTA DE DESTINATARIOS");
                     }
                     
-                    // Mostrar destinatarios por consola
-                    _logger.LogWarning("📋 DESTINATARIOS AGRUPADOS POR ÁREA:");
-                    foreach (var area in destinatariosPorArea.OrderBy(x => x.Key))
-                    {
-                        string siglaArea = siglasAreas.ContainsKey(area.Key) ? siglasAreas[area.Key] : area.Key;
-                        _logger.LogWarning($"🏢 ÁREA {siglaArea}:");
-                        foreach (var (nombre, email) in area.Value)
-                        {
-                            _logger.LogWarning($"  📧 {nombre} - {email}");
-                        }
-                    }
-
-                    _logger.LogWarning("📧 PLANTILLAS DE CORREO POR ÁREA:");
-                    
-                    // Plantillas específicas por área
-                    foreach (var area in destinatariosPorArea.OrderBy(x => x.Key))
-                    {
-                        string siglaArea = siglasAreas.ContainsKey(area.Key) ? siglasAreas[area.Key] : area.Key;
-                        string plantillaArea = "";
-                        
-                        switch (area.Key)
-                        {
-                            case "52060": // DIF
-                                plantillaArea = $@"
-                                <p>Estimados miembros del Departamento de Información Financiera:</p>
-                                <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
-                                <p>Les solicitamos adelantar los trámites pertinentes de revisión y aprobación de dicho formato, así como con la creación del tercero en el aplicativo Apoteosys.</p>
-                                <p>Cordial saludo,<br/><br/>
-                                Departamento de Sistema de Seguro de Depósitos<br/>
-                                Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
-                                PBX: 601 4321370 extensiones 255 - 142</p>";
-                                break;
-                                
-                            case "52070": // DGC
-                                plantillaArea = $@"
-                                <p>Departamento de Gestión de contenidos:</p>
-                                <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
-                                <p>Le solicitamos gestionar la creación de una PQRS en onbase con asignación a SSD.</p>
-                                <p>Cordial saludo,<br/><br/>
-                                Departamento de Sistema de Seguro de Depósitos<br/>
-                                Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
-                                PBX: 601 4321370 extensiones 255 - 142</p>";
-                                break;
-                                
-                            case "59030": // SSD
-                                plantillaArea = $@"
-                                <p>Departamento de Sistema de Seguro de Depósitos:</p>
-                                <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
-                                <p>Le solicitamos iniciar el proceso de validación de la información en el aplicativo y actualizar el estado correspondiente del proceso.</p>
-                                <p>Cordial saludo,<br/><br/>
-                                Departamento de Sistema de Seguro de Depósitos<br/>
-                                Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
-                                PBX: 601 4321370 extensiones 255 - 142</p>";
-                                break;
-                        }
-                        
-                        _logger.LogWarning($"🏢 PLANTILLA ÁREA {siglaArea}: {plantillaArea}");
-                    }
-
-                    var plantillaUsuario = $@"
-                    <p>Estimado(a) {representanteLegal},</p>
-                    <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
-                    <p>El trámite se ha registrado exitosamente con el número <strong>{numeroTramiteStr}</strong>.</p>
-                    <p>Puede consultar su estado en el siguiente enlace:</p>
-                    <p><a href='{linkConsulta}'>{linkConsulta}</a></p>
-                    <p>Cordial saludo,<br/><br/>
-                    Departamento de Sistema de Seguro de Depósitos<br/>
-                    Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
-                    PBX: 601 4321370 extensiones 255 - 142</p>";
-
-                    _logger.LogWarning($"👤 PLANTILLA USUARIO: {plantillaUsuario}");
-
-                    // Armar JSON del correo a enviar
-                    var emailPayload = new
-                    {
-                        representanteLegal = representanteLegal,
-                        entidad = entidadNombre,
-                        numeroTramite = numeroTramiteStr,
-                        correosArea = correosArea,
-                        linkConsulta = linkConsulta
-                    };
-
-                    string emailPayloadJson = JsonConvert.SerializeObject(emailPayload, Formatting.Indented);
-                    _logger.LogWarning("📧 JSON del correo a enviar: " + emailPayloadJson);
-
                     // Crear lista de correos de confirmación (todos los correos de la entidad)
                     var correosConfirmacion = new List<string>();
                     
@@ -467,31 +382,20 @@ namespace InscripcionEntidades
                     // Eliminar duplicados
                     correosConfirmacion = correosConfirmacion.Distinct().ToList();
                     
-                    _logger.LogWarning("📧 CORREOS DE CONFIRMACIÓN (PLANTILLA USUARIO):");
+                    _logger.LogWarning("📧 CORREOS DE CONFIRMACIÓN:");
                     foreach (var correo in correosConfirmacion)
                     {
                         _logger.LogWarning($"  📧 {correo}");
                     }
-                    
-                    // JSON de correos de confirmación
-                    var emailConfirmacionPayload = new
-                    {
-                        representanteLegal = representanteLegal,
-                        entidad = entidadNombre,
-                        numeroTramite = numeroTramiteStr,
-                        correosArea = correosConfirmacion,
-                        linkConsulta = linkConsulta
-                    };
-                    
-                    string emailConfirmacionJson = JsonConvert.SerializeObject(emailConfirmacionPayload, Formatting.Indented);
-                    _logger.LogWarning("📧 JSON CORREOS CONFIRMACIÓN: " + emailConfirmacionJson);
 
-                    // Filtrar correos para no enviar temporalmente a @fogafin.gov.co
-                    var correosAreaFiltrados = correosArea.Where(email => !email.EndsWith("@fogafin.gov.co")).ToList();
-                    var correosConfirmacionFiltrados = correosConfirmacion.Where(email => !email.EndsWith("@fogafin.gov.co")).ToList();
+                    // Filtrar correos para no enviar únicamente a fogafin@fogafin.gov.co
+                    // var correosAreaFiltrados = correosArea.Where(email => !email.EndsWith("@fogafin.gov.co")).ToList();
+                    // var correosConfirmacionFiltrados = correosConfirmacion.Where(email => !email.EndsWith("@fogafin.gov.co")).ToList();
+                    var correosAreaFiltrados = correosArea.Where(email => email != "fogafin@fogafin.gov.co").ToList();
+                    var correosConfirmacionFiltrados = correosConfirmacion.Where(email => email != "fogafin@fogafin.gov.co").ToList();
                     
-                    _logger.LogWarning($"🚫 CORREOS FILTRADOS - Área: {correosArea.Count - correosAreaFiltrados.Count} excluidos");
-                    _logger.LogWarning($"🚫 CORREOS FILTRADOS - Confirmación: {correosConfirmacion.Count - correosConfirmacionFiltrados.Count} excluidos");
+                    _logger.LogWarning($"📧 CORREOS ÁREA: {string.Join(", ", correosAreaFiltrados)}");
+                    _logger.LogWarning($"📧 CORREOS CONFIRMACIÓN: {string.Join(", ", correosConfirmacionFiltrados)}");
 
                     // Envío de correo al área responsable (sin adjunto)
                     if (correosAreaFiltrados.Any())
@@ -562,6 +466,17 @@ namespace InscripcionEntidades
                     // Envío de correo de confirmación al usuario (con PDF adjunto)
                     if (correosConfirmacionFiltrados.Any())
                     {
+                        var plantillaUsuario = $@"
+                        <p>Estimado(a) {representanteLegal},</p>
+                        <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
+                        <p>El trámite se ha registrado exitosamente con el número <strong>{numeroTramiteStr}</strong>.</p>
+                        <p>Puede consultar su estado en el siguiente enlace:</p>
+                        <p><a href='{linkConsulta}'>{linkConsulta}</a></p>
+                        <p>Cordial saludo,<br/><br/>
+                        Departamento de Sistema de Seguro de Depósitos<br/>
+                        Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
+                        PBX: 601 4321370 extensiones 255 - 142</p>";
+                        
                         var emailUsuarioPayload = new
                         {
                             to = correosConfirmacionFiltrados,
