@@ -75,8 +75,7 @@ public class ConsultarEstadoTramite
             {
                 await conn.OpenAsync();
 
-                // 🔹 Consulta que une TN04_Entidad con TM02_ENTIDADFINANCIERA y TM01_Estado
-                // y TM03_Usuario para obtener el estado y el responsable.
+                // 🔹 Consulta que obtiene el estado del trámite y asigna el responsable según el perfil
                 string query = @"
                 SELECT TOP 1 
                     TM2.TM02_NOMBRE AS NombreEntidad,
@@ -85,8 +84,45 @@ public class ConsultarEstadoTramite
                     CAST(TM2.TM02_TM01_CodigoSectorF AS VARCHAR) + 
                     CAST(YEAR(TM2.TM02_Fecha) AS VARCHAR) AS NumeroTramiteCalculado,
                     TM1.TM01_Nombre AS EstadoTramite,
-                    TM2.TM02_NombreResponsable AS NombreResponsable,
-                    TM2.TM02_TelefonoResponsable AS CargoResponsable
+                    CASE 
+                        WHEN TM1.TM01_Nombre = 'En validación de documentos' THEN 
+                            ISNULL((SELECT TOP 1 r.TM04_Nombre + ' ' + r.TM04_Apellidos 
+                                   FROM [SistemasComunes].[dbo].[TM04_Responsables] r
+                                   INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c 
+                                       ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
+                                   WHERE c.TM15_TM12_TM01_Codigo = 17 
+                                     AND c.TM15_TM12_Ambiente = 'PRUEBAS'
+                                     AND c.TM15_TM14_Perfil = 'Jefe SSD'
+                                     AND r.TM04_Activo = 1
+                                   ORDER BY r.TM04_Identificacion), 'Sin asignar')
+                        WHEN TM1.TM01_Nombre = 'En validación del pago' THEN 
+                            ISNULL((SELECT TOP 1 r.TM04_Nombre + ' ' + r.TM04_Apellidos 
+                                   FROM [SistemasComunes].[dbo].[TM04_Responsables] r
+                                   INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c 
+                                       ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
+                                   WHERE c.TM15_TM12_TM01_Codigo = 17 
+                                     AND c.TM15_TM12_Ambiente = 'PRUEBAS'
+                                     AND c.TM15_TM14_Perfil = 'Profesional DOT'
+                                     AND r.TM04_Activo = 1
+                                   ORDER BY r.TM04_Identificacion), 'Sin asignar')
+                        WHEN TM1.TM01_Nombre = 'Pendiente de aprobación final' THEN 
+                            ISNULL((SELECT TOP 1 r.TM04_Nombre + ' ' + r.TM04_Apellidos 
+                                   FROM [SistemasComunes].[dbo].[TM04_Responsables] r
+                                   INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c 
+                                       ON r.TM04_Identificacion = c.TM15_TM04_Identificacion
+                                   WHERE c.TM15_TM12_TM01_Codigo = 17 
+                                     AND c.TM15_TM12_Ambiente = 'PRUEBAS'
+                                     AND c.TM15_TM14_Perfil = 'Jefe SSD'
+                                     AND r.TM04_Activo = 1
+                                   ORDER BY r.TM04_Identificacion), 'Sin asignar')
+                        ELSE 'Sin asignar'
+                    END AS NombreResponsable,
+                    CASE 
+                        WHEN TM1.TM01_Nombre = 'En validación de documentos' THEN 'Jefe SSD'
+                        WHEN TM1.TM01_Nombre = 'En validación del pago' THEN 'Profesional DOT'
+                        WHEN TM1.TM01_Nombre = 'Pendiente de aprobación final' THEN 'Jefe SSD'
+                        ELSE 'Sin perfil'
+                    END AS CargoResponsable
                 FROM 
                     dbo.TM02_ENTIDADFINANCIERA TM2
                 INNER JOIN (
@@ -100,7 +136,7 @@ public class ConsultarEstadoTramite
                     TM2.TM02_NIT = @Nit AND 
                     TM2.TM02_TM08_Consecutivo = @Consecutivo
                 ORDER BY 
-                    TM2.TM02_Fecha DESC;"; // Obtener el registro más reciente si hay varios
+                    TM2.TM02_Fecha DESC;";
 
                 EstadoTramiteDto? resultData = null;
 
@@ -122,9 +158,7 @@ public class ConsultarEstadoTramite
                                 NumeroTramite = reader["NumeroTramiteCalculado"].ToString()!,
                                 EstadoTramite = reader["EstadoTramite"].ToString()!,
                                 NombreResponsable = reader["NombreResponsable"].ToString()!,
-                                // En la vista de ejemplo, el cargo es 'Experto - SSD', si no hay un campo específico, usamos el disponible más cercano o un valor por defecto. 
-                                // Para el mock de la interfaz usaremos 'Experto - SSD' ya que TN04_TelefonoResponsable no es un cargo.
-                                CargoResponsable = "Experto - SSD"
+                                CargoResponsable = reader["CargoResponsable"].ToString()!
                             };
                         }
                     }

@@ -60,11 +60,14 @@
         Financieras
       </h2>
 
-      <p class="text-end">
-        <a href="../assets/documents/InscripcindetercerosV_11.3.xlsx" download>
-          Descargar formato inscripción terceros
-        </a>
-      </p>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <p class="text-muted mb-0"><small>Los campos marcados con (*) son obligatorios</small></p>
+        <p class="mb-0">
+          <a href="../assets/documents/InscripcindetercerosV_11.3.xlsx" download>
+            Descargar formato inscripción terceros
+          </a>
+        </p>
+      </div>
 
       <form id="inscripcionForm" class="needs-validation" novalidate>
         <!-- DATOS DE LA ENTIDAD -->
@@ -92,7 +95,7 @@
           </div>
 
           <div class="col-md-4">
-            <label class="col-form-label">Fecha resolución constitución*</label>
+            <label class="col-form-label">Fecha de resolución de constitución*</label>
           </div>
           <div class="col-md-8">
             <input
@@ -139,6 +142,7 @@
           </div>
           <div class="col-md-8">
             <input id="paginaWeb" type="url" class="form-control" />
+            <div id="paginaWebError" class="text-danger" style="font-size: 0.875rem; margin-top: 0.25rem; display: none;">Ingrese una URL válida (ej: https://www.ejemplo.com)</div>
           </div>
 
           <div class="col-md-4">
@@ -163,14 +167,14 @@
 
           <div class="col-md-4">
             <label class="col-form-label"
-              >Formato de inscripción a terceros (PDF)*</label
+              >Formato de inscripción a terceros (PDF, XLSX)*</label
             >
           </div>
           <div class="col-md-8">
             <div class="file-wrapper" id="formatoTercerosWrapper">
               <span class="text-muted flex-grow-1" id="formatoTercerosText">Ningún archivo seleccionado</span>
               <span class="badge bg-light text-dark">Seleccionar archivo</span>
-              <input id="formatoTerceros" type="file" accept=".pdf" required />
+              <input id="formatoTerceros" type="file" accept=".pdf,.xlsx" required />
             </div>
           </div>
         </div>
@@ -179,7 +183,7 @@
         <h5 class="section-title">Información del pago de la inscripción</h5>
         <div class="row g-3 align-items-center">
           <div class="col-md-4">
-            <label class="col-form-label">Valor pagado*</label>
+            <label class="col-form-label">Valor pagado por inscripción*</label>
           </div>
           <div class="col-md-8">
             <input
@@ -196,7 +200,7 @@
           </div>
 
           <div class="col-md-4">
-            <label class="col-form-label">Fecha de pago*</label>
+            <label class="col-form-label">Fecha de pago de la inscripción*</label>
           </div>
           <div class="col-md-8">
             <input id="fechaPago" type="date" class="form-control" required />
@@ -215,10 +219,10 @@
         </div>
 
         <!-- REPRESENTANTE -->
-        <h5 class="section-title">Representante legal o apoderado</h5>
+        <h5 class="section-title">Información del representante legal o apoderado</h5>
         <div class="row g-3 align-items-center">
           <div class="col-md-4">
-            <label class="col-form-label">Nombre(s)*</label>
+            <label class="col-form-label">Nombre(s) y Apellido(s)*</label>
           </div>
           <div class="col-md-8">
             <input
@@ -227,29 +231,6 @@
               class="form-control"
               required
             />
-          </div>
-
-          <div class="col-md-4">
-            <label class="col-form-label">Apellido(s)*</label>
-          </div>
-          <div class="col-md-8">
-            <input
-              id="apellidoRepresentante"
-              type="text"
-              class="form-control"
-              required
-            />
-          </div>
-
-          <div class="col-md-4">
-            <label class="col-form-label">Cargo*</label>
-          </div>
-          <div class="col-md-8">
-            <select id="cargoRepresentante" class="form-select" required>
-              <option value="">Seleccione...</option>
-              <option value="Representante legal">Representante legal</option>
-              <option value="Apoderado">Apoderado</option>
-            </select>
           </div>
 
           <div class="col-md-4">
@@ -301,8 +282,19 @@
           </div>
 
           <div class="col-md-4">
+            <label class="col-form-label">Cargo*</label>
+          </div>
+          <div class="col-md-8">
+            <select id="cargoRepresentante" class="form-select" required>
+              <option value="">Seleccione...</option>
+              <option value="Representante legal">Representante legal</option>
+              <option value="Apoderado">Apoderado</option>
+            </select>
+          </div>
+
+          <div class="col-md-4">
             <label class="col-form-label"
-              >Certificado de existencia (PDF)*</label
+              >Certificado de existencia y representación legal (PDF)*</label
             >
           </div>
           <div class="col-md-8">
@@ -315,7 +307,7 @@
         </div>
 
         <!-- RESPONSABLE -->
-        <h5 class="section-title">Responsable del registro</h5>
+        <h5 class="section-title">Información del responsable del registro</h5>
         <div class="row g-3 align-items-center">
           <div class="col-md-4">
             <label class="col-form-label">Nombre(s) y Apellido(s)*</label>
@@ -391,7 +383,7 @@
       const fileValidations = {
         'logoEntidad': ['.tiff', '.jpg', '.jpeg', '.bmp', '.gif', '.png'],
         'resolucion': ['.pdf'],
-        'formatoTerceros': ['.pdf'],
+        'formatoTerceros': ['.pdf', '.xlsx'],
         'soportePago': ['.pdf'],
         'certificadoExistencia': ['.pdf']
       };
@@ -706,6 +698,27 @@
           }
         });
       }
+      
+      // Configurar validación de página web
+      const paginaWebField = document.getElementById('paginaWeb');
+      const paginaWebError = document.getElementById('paginaWebError');
+      if (paginaWebField) {
+        paginaWebField.addEventListener('blur', () => {
+          const value = paginaWebField.value.trim();
+          if (value && !isValidUrl(value)) {
+            paginaWebError.style.display = 'block';
+            paginaWebField.style.borderColor = '#dc3545';
+          } else {
+            paginaWebError.style.display = 'none';
+            paginaWebField.style.borderColor = '';
+          }
+        });
+      }
+      
+      function isValidUrl(string) {
+        const urlPattern = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
+        return urlPattern.test(string);
+      }
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -887,7 +900,6 @@
             IdentificacionRep: document.getElementById("numeroDocumento").value,
             TipoDoc: document.getElementById("tipoIdentificacion").value,
             NombreRep: document.getElementById("nombreRepresentante").value,
-            ApellidoRep: document.getElementById("apellidoRepresentante").value,
             CargoRep: document.getElementById("cargoRepresentante").value,
             CorreoRep: document.getElementById("correoRepresentante").value,
             TelefonoRep: document.getElementById("telefonoRep").value,
@@ -922,7 +934,20 @@
 
           const result = await response.json();
           const numeroTramite = `${result.TM08_Consecutivo}${result.TM08_TM01_Codigo}${result.TM08_Ano}`;
-          const responsable = result.TM03_Nombre || 'un funcionario SSD';
+          
+          // Buscar el primer funcionario con perfil Jefe SSD o Profesional SSD
+          let responsable = 'un funcionario SSD';
+          if (result.Funcionarios && Array.isArray(result.Funcionarios)) {
+            const funcionarioSSD = result.Funcionarios.find(f => 
+              f.Perfil && (f.Perfil.includes('Jefe SSD') || f.Perfil.includes('Profesional SSD')) && f.AccesoSIEF
+            );
+            if (funcionarioSSD && funcionarioSSD.Nombre) {
+              responsable = funcionarioSSD.Nombre;
+            }
+          } else if (result.TM03_Nombre) {
+            responsable = result.TM03_Nombre;
+          }
+          
           const siglas = result.Departamento || 'SSD';
 
           Swal.fire({

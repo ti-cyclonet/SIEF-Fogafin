@@ -143,7 +143,7 @@ namespace InscripcionEntidades
                         TM02_TL15_Codigo = @TipoDoc,
                         TM02_Identificacion_Rep = @IdentificacionRep,
                         TM02_Nombre_Rep = @NombreRep,
-                        TM02_Apellido_Rep = @ApellidoRep,
+
                         TM02_Cargo_Rep = @CargoRep,
                         TM02_Correo_Rep = @CorreoRep,
                         TM02_Fecha = @Fecha,
@@ -171,7 +171,7 @@ namespace InscripcionEntidades
                         cmdUpdate.Parameters.AddWithValue("@TipoDoc", data.TipoDoc);
                         cmdUpdate.Parameters.AddWithValue("@IdentificacionRep", data.IdentificacionRep);
                         cmdUpdate.Parameters.AddWithValue("@NombreRep", data.NombreRep);
-                        cmdUpdate.Parameters.AddWithValue("@ApellidoRep", data.ApellidoRep);
+
                         cmdUpdate.Parameters.AddWithValue("@CargoRep", data.CargoRep);
                         cmdUpdate.Parameters.AddWithValue("@CorreoRep", data.CorreoRep);
                         cmdUpdate.Parameters.AddWithValue("@Fecha", data.Fecha);
@@ -267,12 +267,15 @@ namespace InscripcionEntidades
                         }
                     }
 
-                    // Obtener nombre del responsable asignado
+                    // Obtener nombre del responsable asignado (Jefe SSD con acceso a SIEF)
                     string responsableQuery = @"
-                    SELECT TOP 1 TM03_Nombre
-                    FROM [SIIR-ProdV1].[dbo].[TM03_Usuario]
-                    WHERE TM03_TM02_Codigo IN (59030, 52060)
-                    ORDER BY TM03_Nombre";
+                    SELECT TOP 1 u.TM03_Nombre
+                    FROM [SIIR-ProdV1].[dbo].[TM03_Usuario] u
+                    INNER JOIN [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] p 
+                        ON u.TM03_Usuario COLLATE Latin1_General_CI_AS = p.TM15_TM04_Identificacion COLLATE Latin1_General_CI_AS
+                    WHERE p.TM15_TM12_TM01_Codigo = '17' 
+                        AND p.TM15_TM14_Perfil = 'Jefe SSD'
+                    ORDER BY u.TM03_Nombre";
 
                     using (SqlCommand cmdResp = new SqlCommand(responsableQuery, conn))
                     {
@@ -284,11 +287,11 @@ namespace InscripcionEntidades
                     }
 
                     // Preparar datos para envío de correo
-                    string representanteLegal = $"{data.NombreRep} {data.ApellidoRep}";
+                    string representanteLegal = data.NombreRep;
                     string entidadNombre = data.Nombre;
                     numeroTramiteStr = $"{consecutivo}{tipoCodigo}{currentYear}";
-                    string linkConsulta = "https://sadevsiefexterno.z20.web.core.windows.net/pages/consulta.html";
-                    
+                    string linkConsulta = "https://sadevsiefexterno.z20.web.core.windows.net/local/pages/consulta.html";
+                                           
                     _logger.LogWarning($"🚀 INICIANDO PROCESO DE CORREOS PARA ENTIDAD: {entidadNombre} - TRAMITE: {numeroTramiteStr}");
                     _logger.LogWarning("🔍 INICIANDO CONSULTA DE DESTINATARIOS...");
                     
@@ -446,12 +449,40 @@ namespace InscripcionEntidades
                                     break;
                             }
                             
+                            var attachments = new List<object>();
+                            
+                            // Adjuntar formato de inscripción a terceros para DIF
+                            if (area.Key == "52060" && !string.IsNullOrEmpty(data.CartaSolicitud))
+                            {
+                                try
+                                {
+                                    var storageConnection = Environment.GetEnvironmentVariable("StorageConnectionString");
+                                    var blobServiceClient = new BlobServiceClient(storageConnection);
+                                    var uri = new Uri(data.CartaSolicitud);
+                                    var containerName = uri.Segments[1].TrimEnd('/');
+                                    var blobName = string.Join("", uri.Segments.Skip(2));
+                                    var blobClient = blobServiceClient.GetBlobContainerClient(containerName).GetBlobClient(blobName);
+                                    
+                                    using var stream = new MemoryStream();
+                                    await blobClient.DownloadToAsync(stream);
+                                    var fileBytes = stream.ToArray();
+                                    var base64File = Convert.ToBase64String(fileBytes);
+                                    
+                                    var fileName = Path.GetFileName(new Uri(data.CartaSolicitud).LocalPath);
+                                    attachments.Add(new { fileName = fileName, contentBase64 = base64File });
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, "Error al descargar archivo para adjuntar al correo DIF");
+                                }
+                            }
+                            
                             var emailAreaPayload = new
                             {
                                 to = correosAreaEspecifica,
                                 subject = subject,
                                 htmlBody = htmlBody,
-                                attachments = new List<object>()
+                                attachments = attachments
                             };
                             
                             bool correoAreaEnviado = await EnviarCorreoAsync(emailAreaPayload, null, tm02Codigo, numeroTramiteStr);
@@ -599,7 +630,7 @@ namespace InscripcionEntidades
                             inner.Item().Text($"Tipo de Entidad: {data.TipoEntidad}");
                             inner.Item().Text($"Capital Suscrito: ${data.CapitalSuscrito:N0}");
                             inner.Item().Text($"Valor Pagado: ${data.ValorPagado:N0}");
-                            inner.Item().Text($"Representante: {data.NombreRep} {data.ApellidoRep}");
+                            inner.Item().Text($"Representante: {data.NombreRep}");
                             inner.Item().Text($"Correo: {data.CorreoNoti}");
                             inner.Item().Text($"Fecha: {DateTime.Now:dd/MM/yyyy}");
                         });
@@ -642,7 +673,8 @@ namespace InscripcionEntidades
                 if (!payloadObj.ContainsKey("to"))
                     payloadObj["to"] = JArray.FromObject(correosArray);
 
-                var attachments = new List<object>();
+                // Obtener adjuntos existentes del payload
+                var attachments = payloadObj["attachments"]?.ToObject<List<object>>() ?? new List<object>();
 
                 if (!string.IsNullOrEmpty(pdfPath) && File.Exists(pdfPath))
                 {
@@ -925,7 +957,7 @@ namespace InscripcionEntidades
         public long IdentificacionRep { get; set; }
         public string TipoDoc { get; set; } = string.Empty;
         public string NombreRep { get; set; } = string.Empty;
-        public string ApellidoRep { get; set; } = string.Empty;
+
         public string CargoRep { get; set; } = string.Empty;
         public string CorreoRep { get; set; } = string.Empty;
         public DateTime Fecha { get; set; }

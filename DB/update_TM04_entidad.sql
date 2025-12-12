@@ -218,3 +218,30 @@ EXEC sys.sp_addextendedproperty
     @value = N'Tabla para registrar el log de todos los correos enviados por el sistema SIEF',
     @level0type = N'SCHEMA', @level0name = N'dbo',
     @level1type = N'TABLE', @level1name = N'TM80_LOG_CORREOS';
+
+
+
+-- PASO 1: Unificar [TM02_Nombre_Rep] y [TM02_Apellido_Rep] en [TM02_Nombre_Rep]
+-- Se asume que deseas que el nombre completo sea "Nombre Apellido".
+
+UPDATE [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA]
+SET [TM02_Nombre_Rep] = 
+    CASE
+        -- Si ambos campos tienen valor, concaténalos con un espacio.
+        WHEN [TM02_Nombre_Rep] IS NOT NULL AND [TM02_Apellido_Rep] IS NOT NULL
+        THEN [TM02_Nombre_Rep] + ' ' + [TM02_Apellido_Rep]
+        -- Si solo el Nombre está, déjalo.
+        WHEN [TM02_Nombre_Rep] IS NOT NULL
+        THEN [TM02_Nombre_Rep]
+        -- Si solo el Apellido está, úsalo.
+        WHEN [TM02_Apellido_Rep] IS NOT NULL
+        THEN [TM02_Apellido_Rep]
+        -- Si ambos son NULL, déjalo NULL.
+        ELSE NULL
+    END;
+
+-- Opcional: Verifica las primeras 100 filas después de la actualización (descomentar para usar)
+-- SELECT TOP (100) [TM02_Nombre_Rep] FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA];
+
+ALTER TABLE [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA]
+DROP COLUMN [TM02_Apellido_Rep];

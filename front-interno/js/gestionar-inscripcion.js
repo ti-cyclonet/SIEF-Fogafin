@@ -933,9 +933,9 @@ function setupEventListeners() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-              entidadId: parseInt(entidadId),
-              observaciones: observaciones.trim(),
-              usuario: currentUser
+              EntidadId: parseInt(entidadId),
+              Observaciones: observaciones.trim(),
+              Funcionario: currentUser
             })
           });
           

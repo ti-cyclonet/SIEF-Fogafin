@@ -25,7 +25,7 @@ namespace InscripcionEntidades.Services
                     ISNULL(sf.TM01_NOMBRE, ''),
                     ef.TM02_CODIGO,
                     ef.TM02_FECHAINSCRIPCION,
-                    ISNULL(ef.TM02_Nombre_Rep + ' ' + ef.TM02_Apellido_Rep, ''),
+                    ISNULL(ef.TM02_Nombre_Rep, ''),
                     ISNULL(ef.TM02_Correo_Noti, ''),
                     ISNULL(ef.TM02_CapitalSuscrito, 0),
                     ISNULL(ef.TM02_ValorPagado, 0),

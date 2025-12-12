@@ -154,20 +154,22 @@ namespace InscripcionEntidades
                         }
                     }
                     
-                    // 2. Verificar si ya tiene acceso a SIEF
+                    // 2. Verificar si ya tiene acceso a SIEF en ambiente PRUEBAS con el mismo perfil
                     string checkSief = @"SELECT COUNT(*) FROM [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
-                                        WHERE [TM15_TM04_Identificacion] = @identificacion AND [TM15_TM12_TM01_Codigo] = 17";
+                                        WHERE [TM15_TM04_Identificacion] = @identificacion AND [TM15_TM12_TM01_Codigo] = 17 
+                                        AND [TM15_TM12_Ambiente] = 'PRUEBAS' AND [TM15_TM14_Perfil] = @perfil";
                     
                     using (var cmd = new SqlCommand(checkSief, connection))
                     {
                         cmd.Parameters.AddWithValue("@identificacion", identificacion);
+                        cmd.Parameters.AddWithValue("@perfil", perfil);
                         int siefAccess = (int)await cmd.ExecuteScalarAsync();
                         
                         if (siefAccess > 0)
                         {
                             var response = req.CreateResponse(HttpStatusCode.BadRequest);
                             response.Headers.Add("Content-Type", "application/json");
-                            var error = new { success = false, message = "El usuario ya tiene acceso al sistema SIEF." };
+                            var error = new { success = false, message = $"El usuario ya tiene acceso al sistema SIEF con el perfil {perfil}." };
                             await response.WriteStringAsync(JsonSerializer.Serialize(error));
                             return response;
                         }
@@ -177,7 +179,7 @@ namespace InscripcionEntidades
                     string insertConexion = @"
                         INSERT INTO [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
                         ([TM15_TM12_TM01_Codigo], [TM15_TM12_Ambiente], [TM15_TM14_Perfil], [TM15_TM04_Identificacion])
-                        VALUES (17, 'PROD', @perfil, @identificacion)";
+                        VALUES (17, 'PRUEBAS', @perfil, @identificacion)";
 
                     using (var cmd = new SqlCommand(insertConexion, connection))
                     {
@@ -369,7 +371,7 @@ namespace InscripcionEntidades
                                 string insertConexion = @"
                                     INSERT INTO [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] 
                                     ([TM15_TM12_TM01_Codigo], [TM15_TM12_Ambiente], [TM15_TM14_Perfil], [TM15_TM04_Identificacion])
-                                    VALUES (17, 'PROD', @perfil, @identificacion)";
+                                    VALUES (17, 'PRUEBAS', @perfil, @identificacion)";
 
                                 using (var cmd = new SqlCommand(insertConexion, connection, transaction))
                                 {
@@ -519,7 +521,6 @@ namespace InscripcionEntidades
                             SELECT 1 FROM [SistemasComunes].[dbo].[TM15_ConexionAppAmbXResponsable] c
                             WHERE c.TM15_TM04_Identificacion = r.TM04_Identificacion 
                             AND c.TM15_TM12_TM01_Codigo = 17
-                            AND c.TM15_TM12_Ambiente = 'PROD'
                         )
                         ORDER BY r.TM04_Nombre, r.TM04_Apellidos";
 

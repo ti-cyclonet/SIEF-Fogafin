@@ -64,7 +64,7 @@ namespace InscripcionEntidades
                             // 2.1. Actualizar estado en la tabla de entidades
                             string updateEntidadEstadoQuery = @"
                                 UPDATE [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] 
-                                SET TM02_TM01_CODIGO = 2
+                                SET TM02_TM01_CODIGO = 1
                                 WHERE TM02_CODIGO = @entidadId";
 
                             using (var command = new SqlCommand(updateEntidadEstadoQuery, connection, transaction))
@@ -73,7 +73,7 @@ namespace InscripcionEntidades
                                 await command.ExecuteNonQueryAsync();
                             }
 
-                            // 2.1. Actualizar estado a "RECHAZADO SSD" (código 2)
+                            // 2.1. Actualizar estado a "RECHAZADO SSD" (código 1)
                             string updateEstadoQuery = @"
                                 UPDATE [SIIR-ProdV1].[dbo].[TM01_Estado] 
                                 SET TM01_TM01_Codigo = 2, TM01_Nombre = 'RECHAZADO SSD'
@@ -89,7 +89,7 @@ namespace InscripcionEntidades
                             string insertHistoricoQuery = @"
                                 INSERT INTO [SIIR-ProdV1].[dbo].[TN05_Historico_Estado] 
                                 (TN05_TM02_Tipo, TN05_TM02_Codigo, TN05_TM01_EstadoAnterior, TN05_TM01_EstadoActual, TN05_Fecha, TN05_TN03_Usuario, TN05_Observaciones)
-                                VALUES (1, @entidadId, @estadoAnterior, 2, GETDATE(), @funcionario, @observaciones)";
+                                VALUES (1, @entidadId, @estadoAnterior, 1, GETDATE(), @funcionario, @observaciones)";
 
                             using (var command = new SqlCommand(insertHistoricoQuery, connection, transaction))
                             {

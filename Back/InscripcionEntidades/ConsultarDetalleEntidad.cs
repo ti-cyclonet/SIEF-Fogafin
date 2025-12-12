@@ -40,7 +40,7 @@ namespace InscripcionEntidades
                             e.TM02_PaginaWeb,
                             e.TM02_FECHAINSCRIPCION,
                             e.TM02_Nombre_Rep,
-                            e.TM02_Apellido_Rep,
+
                             e.TM02_Identificacion_Rep,
                             e.TM02_Correo_Rep,
                             e.TM02_Telefono_Rep,
@@ -53,6 +53,7 @@ namespace InscripcionEntidades
                             e.TM02_ValorPagado,
                             e.TM02_FechaPago,
                             e.TM02_RutaComprobantePago,
+                            e.TM02_CertificadoSuper,
                             s.TM01_NOMBRE as TipoEntidad,
                             est.TM01_Nombre as EstadoTramite,
                             est.TM01_Codigo,
@@ -78,7 +79,7 @@ namespace InscripcionEntidades
                     {
                         command.Parameters.AddWithValue("@entidadId", entidadId);
 
-                        string tipoEntidad = "", nit = "", correoNotificacion = "", paginaWeb = "", numeroTramite = "", fechaInscripcion = "", estadoTramite = "", estadoId = "", nombreRepresentante = "", identificacionRepresentante = "", correoRepresentante = "", telefonoRepresentante = "", cargoRepresentante = "", nombreResponsableRegistro = "", correoResponsableRegistro = "", telefonoResponsableRegistro = "", fechaConstitucion = "", capitalSuscrito = "", valorPagado = "", fechaPago = "", rutaComprobantePago = "";
+                        string tipoEntidad = "", nit = "", correoNotificacion = "", paginaWeb = "", numeroTramite = "", fechaInscripcion = "", estadoTramite = "", estadoId = "", nombreRepresentante = "", identificacionRepresentante = "", correoRepresentante = "", telefonoRepresentante = "", cargoRepresentante = "", nombreResponsableRegistro = "", correoResponsableRegistro = "", telefonoResponsableRegistro = "", fechaConstitucion = "", capitalSuscrito = "", valorPagado = "", fechaPago = "", rutaComprobantePago = "", certificadoSuper = "";
                         
                         using (var reader = await command.ExecuteReaderAsync())
                         {
@@ -92,7 +93,7 @@ namespace InscripcionEntidades
                                 fechaInscripcion = reader["TM02_FECHAINSCRIPCION"]?.ToString() ?? "";
                                 estadoTramite = reader["EstadoTramite"]?.ToString() ?? "";
                                 estadoId = reader["TM01_Codigo"]?.ToString() ?? "";
-                                nombreRepresentante = $"{reader["TM02_Nombre_Rep"]?.ToString() ?? ""} {reader["TM02_Apellido_Rep"]?.ToString() ?? ""}".Trim();
+                                nombreRepresentante = reader["TM02_Nombre_Rep"]?.ToString() ?? "";
                                 identificacionRepresentante = reader["TM02_Identificacion_Rep"]?.ToString() ?? "";
                                 correoRepresentante = reader["TM02_Correo_Rep"]?.ToString() ?? "";
                                 telefonoRepresentante = reader["TM02_Telefono_Rep"]?.ToString() ?? "";
@@ -105,6 +106,7 @@ namespace InscripcionEntidades
                                 valorPagado = reader["TM02_ValorPagado"]?.ToString() ?? "";
                                 fechaPago = reader["TM02_FechaPago"]?.ToString() ?? "";
                                 rutaComprobantePago = reader["TM02_RutaComprobantePago"]?.ToString() ?? "";
+                                certificadoSuper = reader["TM02_CertificadoSuper"]?.ToString() ?? "";
                             }
                             else
                             {
@@ -126,6 +128,12 @@ namespace InscripcionEntidades
                                     archivos.Add(readerAdjuntos["TN07_Archivo"]?.ToString() ?? "");
                                 }
                             }
+                        }
+                        
+                        // Agregar certificado de superintendencia si existe
+                        if (!string.IsNullOrEmpty(certificadoSuper))
+                        {
+                            archivos.Add($"RESOLUCION_{certificadoSuper}");
                         }
                         
                         // Obtener pagos

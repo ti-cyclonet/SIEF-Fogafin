@@ -18,7 +18,7 @@
         padding-top: 50px;
       }
       .consulta-view-container {
-        max-width: 600px;
+        max-width: 700px;
         padding: 40px;
         margin: 50px auto;
         text-align: center;
@@ -32,10 +32,17 @@
     <div id="header"></div>
 
     <div class="consulta-view-container">
-      <h2 id="mainTitle">Estado del Trámite de la Inscripción</h2>
+      <h2 id="mainTitle" class="mb-4">
+        Consultar estado del trámite
+        <i class="fas fa-info-circle ms-2" 
+           data-bs-toggle="tooltip" 
+           data-bs-placement="bottom" 
+           title="Estados posibles: En validación de documentos; En validación del pago; Pendiente de aprobación final; Entidad inscrita"
+           style="font-size: 0.8em; color: #6c757d; cursor: help;"></i>
+      </h2>
 
       <div id="consultaFormWrapper">
-        <p class="text-center text-muted mb-4">
+        <p class="text-center text-muted mb-4" style="font-size: 1.1rem; line-height: 1.6;">
           Ingrese el Nit de la entidad sin puntos y sin el dígito de
           verificación y el número de trámite recibido cuando inició el proceso
           de inscripción.
@@ -66,7 +73,7 @@
                 style="transform: scale(1.5);"
                 required
               />
-              <label class="form-check-label me-3 fs-4" for="checkRobot"
+              <label class="form-check-label me-3 form-label" for="checkRobot"
                 >No soy un robot</label
               >
               <div><small>reCAPTCHA</small></div>
@@ -112,7 +119,7 @@
                         A continuación se presenta el estado de su solicitud:
                     </p>
 
-                    <table class="table table-borderless fs-4">
+                    <table class="table table-borderless" style="font-size: 1.1rem;">
                         <tbody>
                             <tr>
                                 <td class="fw-semibold text-start" style="width: 40%;">Nombre Entidad:</td>
@@ -190,6 +197,7 @@
 
             if (response.ok) {
               const datos = await response.json();
+              
               document
                 .getElementById("consultaFormWrapper")
                 .classList.add("hidden");
@@ -234,6 +242,12 @@
         });
 
       document.addEventListener("DOMContentLoaded", () => {
+        // Inicializar tooltips de Bootstrap
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
         document
           .getElementById("btnCancelarConsulta")
           .addEventListener("click", function () {
