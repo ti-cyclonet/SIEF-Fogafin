@@ -3,6 +3,7 @@
 let buscarEntidad, selectEntidad, informacionEntidad, detalleEntidad;
 let entidadesData = [];
 let comprobantesPago = [];
+let tasaInscripcion = 0.000115; // valor por defecto
 
 document.addEventListener("DOMContentLoaded", () => {
   buscarEntidad = document.getElementById("buscarEntidad");
@@ -16,48 +17,48 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   
   initializeApp();
+  cargarParametros();
 });
 
 async function loadEntidadesGestionables() {
   const userPerfil = localStorage.getItem('userPerfil');
-  const isDOTProfile = userPerfil === 'Profesional DOT';
-  
-  let estadosGestionables;
-  if (isDOTProfile) {
-    estadosGestionables = "13"; // Solo estado 13 para perfil DOT
-  } else {
-    estadosGestionables = "12,13,14"; // Todos los estados para otros perfiles
-  }
-
+  const isProfesionalDOT = userPerfil === 'Profesional DOT';
+  let estadosGestionables = isProfesionalDOT ? "13" : "12,13,14";
   
   const url = getApiUrl(`entidades-filtradas?estadoIds=${estadosGestionables}`);
+  
   try {
     const response = await fetch(url);
-    if (!response.ok) throw new Error("Error al cargar entidades para gestión.");
+    if (!response.ok) throw new Error(`Error ${response.status}`);
+    
     const entidades = await response.json();
+    if (!Array.isArray(entidades)) throw new Error('Respuesta inválida');
     
-    // Filtro adicional en frontend para asegurar estados correctos
-    const estadosPermitidos = estadosGestionables.split(',').map(id => parseInt(id));
-    const entidadesFiltradas = entidades.filter(e => {
-      const estadoId = e.EstadoId || e.estadoId;
-      return estadosPermitidos.includes(estadoId);
-    });
+    entidadesData = entidades;
+    mostrarEntidades(entidades);
     
-    entidadesData = entidadesFiltradas;
-    if (selectEntidad) {
-      selectEntidad.innerHTML = '<option value="">Seleccione...</option>';
-      entidadesFiltradas.forEach((e) => {
-        const option = document.createElement('option');
-        option.value = e.Id || e.id;
-        option.textContent = e.RazonSocial || e.razonSocial;
-        option.dataset.estadoId = e.EstadoId || e.estadoId;
-        option.dataset.estadoNombre = e.EstadoNombre || e.estadoNombre;
-        selectEntidad.appendChild(option);
-      });
+    if (entidades.length === 0 && selectEntidad) {
+      selectEntidad.innerHTML = '<option value="">No hay entidades disponibles</option>';
     }
+    
   } catch (error) {
-    Swal.fire("Error de Carga", "No se pudieron cargar las entidades gestionables.", "error");
-    console.error(error);
+    console.error('Error al cargar entidades:', error);
+    entidadesData = [];
+    if (selectEntidad) {
+      selectEntidad.innerHTML = `<option value="">Error: ${error.message}</option>`;
+    }
+  }
+}
+
+// Función para verificar si una entidad sigue siendo gestionable
+function esEntidadGestionable(estadoId) {
+  const userPerfil = localStorage.getItem('userPerfil');
+  const isProfesionalDOT = userPerfil === 'Profesional DOT';
+  
+  if (isProfesionalDOT) {
+    return estadoId === 13; // Solo estado 13 para Profesional DOT
+  } else {
+    return [12, 13, 14].includes(estadoId); // Estados 12, 13 y 14 para otros perfiles
   }
 }
 
@@ -75,11 +76,12 @@ async function descargarComprobanteDesdeId(tn07Id) {
   }
 }
 
-async function descargarArchivoDirecto(archivoUrl) {
+function descargarArchivoDirecto(archivoUrl) {
   try {
     const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(archivoUrl)}&inline=true`);
     window.open(downloadUrl, '_blank');
   } catch (error) {
+    console.error('Error al descargar archivo:', error);
     Swal.fire('Error', 'No se pudo visualizar el archivo', 'error');
   }
 }
@@ -94,7 +96,11 @@ function formatearMonedaConDecimales(valor) {
 
 function mostrarEntidades(entidades) {
   if (!selectEntidad) return;
+  
   selectEntidad.innerHTML = '<option value="">Seleccione...</option>';
+  
+  if (!entidades || entidades.length === 0) return;
+  
   entidades.forEach((entidad) => {
     const option = document.createElement('option');
     option.value = entidad.Id || entidad.id;
@@ -121,15 +127,69 @@ async function cargarDetalleEntidad(entidadId, entidadData = {}) {
     limpiarDetalles();
     return;
   }
+  
+  // Mostrar indicador de carga
+  const elementos = ['tipoEntidad', 'nitEntidad', 'correoNotificacion'];
+  elementos.forEach(id => {
+    const elemento = document.getElementById(id);
+    if (elemento) elemento.textContent = 'Cargando...';
+  });
+  
   try {
     const response = await fetch(getApiUrl(`ConsultarDetalleEntidad/${entidadId}`));
-    if (!response.ok) throw new Error('Error al obtener el detalle de la entidad');
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+    }
+    
     const detalle = await response.json();
-    const detalleCompleto = { ...detalle, ...entidadData, id: entidadId };
+    
+    // Validar que se recibieron datos válidos
+    if (!detalle || typeof detalle !== 'object') {
+      throw new Error('Respuesta de API inválida');
+    }
+    
+    // Usar los datos del dropdown que son más confiables para el estado
+    const detalleCompleto = { 
+      ...detalle, 
+      id: entidadId,
+      estadoNombre: entidadData.estadoNombre || detalle.estadoNombre,
+      estadoId: entidadData.estadoId || detalle.estadoId
+    };
+    
+    // Verificar si la entidad sigue siendo gestionable
+    if (detalleCompleto.estadoId && !esEntidadGestionable(detalleCompleto.estadoId)) {
+      Swal.fire('Información', 'Esta entidad ya no está disponible para gestión', 'info');
+      limpiarDetalles();
+      return;
+    }
+    
     mostrarDetalleEntidad(detalleCompleto);
   } catch (error) {
     console.error('Error al cargar detalle:', error);
-    mostrarDetalleEntidad({ ...entidadData, id: entidadId });
+    
+    // Mostrar mensaje de error específico al usuario
+    Swal.fire({
+      title: 'Error al cargar detalles',
+      text: `No se pudieron cargar los detalles de la entidad: ${error.message}`,
+      icon: 'error',
+      confirmButtonText: 'Entendido'
+    });
+    
+    // Intentar mostrar datos básicos del dropdown
+    const entidadSeleccionada = entidadesData.find(e => (e.Id || e.id) == entidadId);
+    if (entidadSeleccionada) {
+      const datosBasicos = {
+        id: entidadId,
+        razonSocial: entidadSeleccionada.RazonSocial || entidadSeleccionada.razonSocial,
+        estadoNombre: entidadData.estadoNombre || entidadSeleccionada.EstadoNombre || entidadSeleccionada.estadoNombre,
+        estadoId: entidadData.estadoId || entidadSeleccionada.EstadoId || entidadSeleccionada.estadoId,
+        nit: entidadSeleccionada.NIT || entidadSeleccionada.nit,
+        tipoEntidad: entidadSeleccionada.TipoEntidad || entidadSeleccionada.tipoEntidad
+      };
+      mostrarDetalleEntidad(datosBasicos);
+    } else {
+      limpiarDetalles();
+    }
   }
 }
 
@@ -252,6 +312,13 @@ async function cargarHistorialGestion(entidadId) {
 }
 
 function mostrarDetalleEntidad(detalle) {
+  // Validar que se recibió un objeto válido
+  if (!detalle || typeof detalle !== 'object') {
+    console.error('Detalle de entidad inválido:', detalle);
+    limpiarDetalles();
+    return;
+  }
+  
   const elementos = [
     'tipoEntidad', 'nitEntidad', 'correoNotificacion', 'paginaWeb', 'numeroTramite', 'selectEstado',
     'nombreRepresentante', 'numeroDocumento', 'correoRepresentante', 'telefonoRepresentante',
@@ -259,64 +326,98 @@ function mostrarDetalleEntidad(detalle) {
     'capitalSuscrito', 'valorPagado', 'fechaPago'
   ];
   
+  // Verificar si tenemos datos mínimos requeridos
+  const tieneInformacionBasica = detalle.estadoNombre || detalle.nit || detalle.tipoEntidad;
+  
   elementos.forEach(id => {
     const elemento = document.getElementById(id);
     if (elemento) {
       switch(id) {
-        case 'tipoEntidad': elemento.textContent = detalle.tipoEntidad || ''; break;
-        case 'nitEntidad': elemento.textContent = detalle.nit || ''; break;
-        case 'correoNotificacion': elemento.textContent = detalle.correoNotificacion || ''; break;
-        case 'paginaWeb': elemento.textContent = detalle.paginaWeb || ''; break;
-        case 'numeroTramite': elemento.textContent = detalle.numeroTramite || ''; break;
-        case 'selectEstado': elemento.textContent = detalle.estadoNombre || ''; break;
+        case 'tipoEntidad': 
+          elemento.textContent = detalle.tipoEntidad || (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx'); 
+          break;
+        case 'nitEntidad': 
+          elemento.textContent = detalle.nit || (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx'); 
+          break;
+        case 'correoNotificacion': 
+          elemento.textContent = detalle.correoNotificacion || (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx'); 
+          break;
+        case 'paginaWeb': 
+          elemento.textContent = detalle.paginaWeb || (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx'); 
+          break;
+        case 'numeroTramite': 
+          elemento.textContent = detalle.numeroTramite || (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx'); 
+          break;
+        case 'selectEstado': 
+          elemento.textContent = detalle.estadoNombre || 'Estado no disponible'; 
+          break;
         case 'fechaConstitucion': 
-          elemento.textContent = detalle.fechaConstitucion ? new Date(detalle.fechaConstitucion).toLocaleDateString('es-CO') : 'Información xxxxx';
+          elemento.textContent = detalle.fechaConstitucion ? 
+            new Date(detalle.fechaConstitucion).toLocaleDateString('es-CO') : 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
           break;
         case 'capitalSuscrito': 
-          elemento.textContent = detalle.capitalSuscrito ? formatearMoneda(detalle.capitalSuscrito) : 'Información xxxxx';
+          elemento.textContent = detalle.capitalSuscrito ? 
+            formatearMoneda(detalle.capitalSuscrito) : 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
           break;
         case 'valorPagado':
-          const valorPagadoCalculado = detalle.capitalSuscrito ? detalle.capitalSuscrito * 0.000115 : 0;
-          elemento.textContent = valorPagadoCalculado > 0 ? formatearMonedaConDecimales(valorPagadoCalculado) : 'Información xxxxx';
+          const valorPagadoCalculado = detalle.capitalSuscrito ? detalle.capitalSuscrito * tasaInscripcion : 0;
+          elemento.textContent = valorPagadoCalculado > 0 ? 
+            formatearMonedaConDecimales(valorPagadoCalculado) : 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
           break;
         case 'fechaPago':
-          elemento.textContent = detalle.fechaPago ? new Date(detalle.fechaPago).toLocaleDateString('es-CO') : 'Información xxxxx';
+          elemento.textContent = detalle.fechaPago ? 
+            new Date(detalle.fechaPago).toLocaleDateString('es-CO') : 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
           break;
         case 'numeroDocumento': 
-          elemento.textContent = detalle.identificacionRepresentante || 'Información xxxxx';
+          elemento.textContent = detalle.identificacionRepresentante || 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
           break;
         case 'correoRepresentante': 
-          elemento.textContent = detalle.correoRepresentante || 'Información xxxxx';
+          elemento.textContent = detalle.correoRepresentante || 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
           break;
         case 'telefonoRepresentante': 
-          elemento.textContent = detalle.telefonoRepresentante || 'Información xxxxx';
+          elemento.textContent = detalle.telefonoRepresentante || 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
           break;
         case 'nombreResponsable': 
-          elemento.textContent = detalle.nombreResponsableRegistro || 'Información xxxxx';
+          elemento.textContent = detalle.nombreResponsableRegistro || 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
           break;
         case 'correoResponsable': 
-          elemento.textContent = detalle.correoResponsableRegistro || 'Información xxxxx';
+          elemento.textContent = detalle.correoResponsableRegistro || 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
           break;
         case 'telefonoResponsable': 
-          elemento.textContent = detalle.telefonoResponsableRegistro || 'Información xxxxx';
+          elemento.textContent = detalle.telefonoResponsableRegistro || 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
           break;
         case 'nombreRepresentante':
-          elemento.textContent = detalle.nombreRepresentante || 'Información xxxxx';
+          elemento.textContent = detalle.nombreRepresentante || 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
           break;
         default:
-          elemento.textContent = detalle[id] || 'Información xxxxx';
+          elemento.textContent = detalle[id] || 
+            (tieneInformacionBasica ? 'No disponible' : 'Información xxxxx');
       }
     }
   });
   
-  cargarComprobanteInicial(detalle);
+  // Solo cargar datos adicionales si tenemos un ID válido
   if (detalle.id) {
+    cargarComprobanteInicial(detalle);
     cargarHistorialGestion(detalle.id);
   }
+  
   window.currentDetalle = detalle;
   configurarLinksArchivos(detalle.archivos || [], detalle.rutaComprobantePago, detalle.id);
   actualizarBotonesGestion(detalle.estadoNombre, detalle.estadoId);
   controlarEditabilidadInformacionGeneral();
+  
   if (informacionEntidad) informacionEntidad.classList.remove('d-none');
   if (detalleEntidad) detalleEntidad.classList.remove('d-none');
 }
@@ -370,11 +471,25 @@ function configurarLinksArchivos(archivos, rutaComprobantePago = null, entidadId
     documentosAdicionales.forEach((archivo, index) => {
       const newRow = document.createElement('tr');
       const link = document.createElement('a');
-      const downloadUrl = getApiUrl(`DescargarArchivo?url=${encodeURIComponent(archivo)}&inline=1`);
-      link.href = downloadUrl;
-      link.target = '_blank';
+      // Usar descargarComprobanteDesdeId que funciona correctamente
+      link.href = '#';
+      link.onclick = (e) => {
+        e.preventDefault();
+        // Buscar el ID del archivo en archivosConId
+        const detalle = window.currentDetalle;
+        if (detalle && detalle.archivosConId) {
+          const archivoConId = detalle.archivosConId.find(a => a.url === archivo);
+          if (archivoConId && archivoConId.id) {
+            descargarComprobanteDesdeId(archivoConId.id);
+            return;
+          }
+        }
+        // Fallback a URL directa
+        descargarArchivoDirecto(archivo);
+      };
       link.className = 'text-primary';
       link.textContent = 'Ver archivo';
+      link.style.cursor = 'pointer';
       
       const td1 = document.createElement('td');
       td1.className = 'fw-bold';
@@ -407,7 +522,17 @@ function actualizarBotonesGestion(estadoNombre, estadoId) {
   
   // Aprobar documentos solo habilitado para estado 12 (En validación de documentos)
   if (btnAprobarDocumentos) {
-    btnAprobarDocumentos.disabled = estadoId !== 12;
+    const isEstado12 = estadoId === 12;
+    btnAprobarDocumentos.disabled = !isEstado12;
+    
+    // Cambiar texto del botón según el estado
+    if (isEstado12) {
+      btnAprobarDocumentos.innerHTML = '<i class="fas fa-check me-1"></i>Validar documentos';
+      btnAprobarDocumentos.title = 'Validar y aprobar los documentos presentados';
+    } else {
+      btnAprobarDocumentos.innerHTML = '<i class="fas fa-check me-1"></i>Aprobar documentos';
+      btnAprobarDocumentos.title = 'Solo disponible para entidades en validación de documentos';
+    }
   }
   
   // Aprobar inscripción solo habilitado para estado 14 (Pendiente de aprobación final)
@@ -490,8 +615,8 @@ function controlarEditabilidadInformacionGeneral() {
   const userPerfil = localStorage.getItem('userPerfil');
   
   // Mostrar botones de pago solo para perfil DOT y AdminSief
-  const isDOTProfile = userPerfil === 'Profesional DOT';
-  const showPaymentButtons = isAdmin || isDOTProfile;
+  const isProfesionalDOT = userPerfil === 'Profesional DOT';
+  const showPaymentButtons = isAdmin || isProfesionalDOT;
   
   const btnAdjuntarComprobante = document.getElementById('btnAdjuntarComprobante');
   const btnConfirmarPago = document.getElementById('btnConfirmarPago');
@@ -510,7 +635,7 @@ function controlarEditabilidadInformacionGeneral() {
     if (btnAprobarInscripcion) btnAprobarInscripcion.style.display = 'none';
   }
   
-  if (!isAdmin && !isJefeSSD && !isDOTProfile && !isProfesionalSSD) {
+  if (!isAdmin && !isJefeSSD && !isProfesionalDOT && !isProfesionalSSD) {
     const btnModificarCapital = document.getElementById('btnModificarCapital');
     const filaArchivosAdicionales = document.getElementById('filaArchivosAdicionales');
     const filaArchivosAdicionalesPago = document.getElementById('filaArchivosAdicionalesPago');
@@ -520,8 +645,8 @@ function controlarEditabilidadInformacionGeneral() {
     if (filaArchivosAdicionalesPago) filaArchivosAdicionalesPago.style.display = 'none';
   }
   
-  // Ocultar elementos específicos para perfil DOT
-  if (isDOTProfile) {
+  // Ocultar elementos específicos para perfil Profesional DOT
+  if (isProfesionalDOT) {
     const btnModificarCapital = document.getElementById('btnModificarCapital');
     const btnAdjuntarArchivoPago = document.getElementById('btnAdjuntarArchivoPago');
     
@@ -731,10 +856,19 @@ function setupEventListeners() {
       if (selectedOption.value && buscarEntidad) {
         buscarEntidad.value = selectedOption.textContent;
         selectEntidad.classList.add('d-none');
+        
+        // Obtener datos completos de la entidad desde el array
+        const entidadCompleta = entidadesData.find(ent => (ent.Id || ent.id) == selectedOption.value);
+        
         const entidadData = { 
           estadoNombre: selectedOption.dataset.estadoNombre || '',
-          estadoId: parseInt(selectedOption.dataset.estadoId) || 0
+          estadoId: parseInt(selectedOption.dataset.estadoId) || 0,
+          razonSocial: entidadCompleta ? (entidadCompleta.RazonSocial || entidadCompleta.razonSocial) : '',
+          nit: entidadCompleta ? (entidadCompleta.NIT || entidadCompleta.nit) : '',
+          tipoEntidad: entidadCompleta ? (entidadCompleta.TipoEntidad || entidadCompleta.tipoEntidad) : ''
         };
+        
+
         cargarDetalleEntidad(selectedOption.value, entidadData);
       }
     });
@@ -814,10 +948,17 @@ function setupEventListeners() {
         return;
       }
       
+      // Validar que existan documentos requeridos
+      const detalle = window.currentDetalle;
+      if (!detalle || !detalle.archivos || detalle.archivos.length === 0) {
+        Swal.fire('Error', 'No hay documentos cargados para validar', 'error');
+        return;
+      }
+      
       const confirmResult = await Swal.fire({
         title: '¿Está seguro de aprobar los documentos?',
         showCancelButton: true,
-        confirmButtonText: 'Sí',
+        confirmButtonText: 'Sí, aprobar',
         cancelButtonText: 'Cancelar'
       });
       
@@ -940,11 +1081,20 @@ function setupEventListeners() {
           });
           
           if (response.ok) {
-            Swal.fire('Éxito', 'Inscripción rechazada correctamente', 'success');
-            // Resetear formulario
-            if (buscarEntidad) buscarEntidad.value = '';
-            if (selectEntidad) selectEntidad.classList.add('d-none');
-            limpiarDetalles();
+            Swal.fire({
+              title: 'Éxito',
+              text: 'Inscripción rechazada correctamente',
+              icon: 'success',
+              confirmButtonText: 'Cerrar'
+            }).then(async () => {
+              // Recargar datos y limpiar formulario
+              await loadEntidadesGestionables();
+              const buscarEntidadEl = document.getElementById('buscarEntidad');
+              const selectEntidadEl = document.getElementById('selectEntidad');
+              if (buscarEntidadEl) buscarEntidadEl.value = '';
+              if (selectEntidadEl) selectEntidadEl.classList.add('d-none');
+              limpiarDetalles();
+            });
           } else {
             const errorText = await response.text();
             Swal.fire('Error', errorText || 'No se pudo rechazar la inscripción', 'error');
@@ -1202,6 +1352,41 @@ function agregarArchivoVisualmentePago(nombreArchivo, url) {
   newRow.appendChild(td1);
   newRow.appendChild(td2);
   tablaDocumentos.appendChild(newRow);
+}
+
+async function obtenerEstadoActualDesdeHistorial(entidadId) {
+  try {
+    const response = await fetch(getApiUrl(`ConsultarHistorialGestion/${entidadId}`));
+    if (response.ok) {
+      const historial = await response.json();
+      if (historial.length > 0) {
+        // Ordenar por fecha descendente para obtener el más reciente
+        const historialOrdenado = historial.sort((a, b) => new Date(b.TN05_Fecha) - new Date(a.TN05_Fecha));
+        const ultimoRegistro = historialOrdenado[0];
+        return {
+          estadoNombre: ultimoRegistro.EstadoActual,
+          estadoId: ultimoRegistro.TN05_TM01_EstadoActual || ultimoRegistro.estadoId
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Error al obtener estado desde historial:', error);
+  }
+  return null;
+}
+
+async function cargarParametros() {
+  try {
+    const response = await fetch(getApiUrl('parametros'));
+    if (response.ok) {
+      const parametros = await response.json();
+      if (parametros['TASA_INSCRIPCION']) {
+        tasaInscripcion = parseFloat(parametros['TASA_INSCRIPCION']) || 0.000115;
+      }
+    }
+  } catch (error) {
+    console.error('Error al cargar parámetros:', error);
+  }
 }
 
 function convertirArchivoABase64(archivo) {

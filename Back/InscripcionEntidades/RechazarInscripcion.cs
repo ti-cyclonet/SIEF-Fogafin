@@ -38,8 +38,8 @@ namespace InscripcionEntidades
                         {
                             // 1. Obtener estado actual
                             string getEstadoActualQuery = @"
-                                SELECT ISNULL(TM01_TM01_Codigo, 0) FROM [SIIR-ProdV1].[dbo].[TM01_Estado] 
-                                WHERE TM01_TM02_Codigo = @entidadId";
+                                SELECT ISNULL(e.TM02_TM01_CODIGO, 0) FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] e
+                                WHERE e.TM02_CODIGO = @entidadId";
                             
                             int estadoActual = 0;
                             using (var command = new SqlCommand(getEstadoActualQuery, connection, transaction))
@@ -61,25 +61,13 @@ namespace InscripcionEntidades
                                 await command.ExecuteNonQueryAsync();
                             }
 
-                            // 2.1. Actualizar estado en la tabla de entidades
+                            // 2.1. Actualizar estado a "RECHAZADO SSD" (código 1)
                             string updateEntidadEstadoQuery = @"
                                 UPDATE [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] 
                                 SET TM02_TM01_CODIGO = 1
                                 WHERE TM02_CODIGO = @entidadId";
 
                             using (var command = new SqlCommand(updateEntidadEstadoQuery, connection, transaction))
-                            {
-                                command.Parameters.AddWithValue("@entidadId", data.EntidadId);
-                                await command.ExecuteNonQueryAsync();
-                            }
-
-                            // 2.1. Actualizar estado a "RECHAZADO SSD" (código 1)
-                            string updateEstadoQuery = @"
-                                UPDATE [SIIR-ProdV1].[dbo].[TM01_Estado] 
-                                SET TM01_TM01_Codigo = 2, TM01_Nombre = 'RECHAZADO SSD'
-                                WHERE TM01_TM02_Codigo = @entidadId";
-
-                            using (var command = new SqlCommand(updateEstadoQuery, connection, transaction))
                             {
                                 command.Parameters.AddWithValue("@entidadId", data.EntidadId);
                                 await command.ExecuteNonQueryAsync();
@@ -102,7 +90,7 @@ namespace InscripcionEntidades
 
                             // 4. Obtener información para el correo
                             string getInfoCorreoQuery = @"
-                                SELECT e.TM02_Nombre_Rep, e.TM02_Apellido_Rep, e.TM02_Correo_Noti, 
+                                SELECT e.TM02_Nombre_Rep, e.TM02_Correo_Noti, 
                                        e.TM02_Correo_Rep, e.TM02_NombreResponsable, e.TM02_CorreoResponsable
                                 FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] e
                                 WHERE e.TM02_CODIGO = @entidadId";
@@ -117,7 +105,7 @@ namespace InscripcionEntidades
                                 {
                                     if (await reader.ReadAsync())
                                     {
-                                        nombreRepresentante = $"{reader["TM02_Nombre_Rep"]?.ToString()} {reader["TM02_Apellido_Rep"]?.ToString()}".Trim();
+                                        nombreRepresentante = reader["TM02_Nombre_Rep"]?.ToString() ?? "";
                                         
                                         // Agregar correos de la entidad
                                         var correoNoti = reader["TM02_Correo_Noti"]?.ToString();

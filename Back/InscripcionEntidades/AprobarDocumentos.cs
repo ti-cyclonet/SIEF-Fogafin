@@ -40,12 +40,19 @@ namespace InscripcionEntidades
                     {
                         await connection.OpenAsync();
 
-                        // Obtener RazonSocial, estado anterior y número de trámite
+                        // Obtener RazonSocial, estado anterior desde historial y número de trámite
                         string getInfoQuery = @"
-                            SELECT e.TM02_NOMBRE, e.TM02_TM01_CODIGO, 
-                                   CONCAT(c.TM08_Consecutivo, c.TM08_TM01_Codigo, c.TM08_Ano) AS NumeroTramite
+                            SELECT e.TM02_NOMBRE, 
+                                   CONCAT(c.TM08_Consecutivo, c.TM08_TM01_Codigo, c.TM08_Ano) AS NumeroTramite,
+                                   COALESCE(h.TN05_TM01_EstadoActual, e.TM02_TM01_CODIGO) AS EstadoActual
                             FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] e
                             LEFT JOIN [SIIR-ProdV1].[dbo].[TM08_ConsecutivoEnt] c ON e.TM02_TM08_Consecutivo = c.TM08_Consecutivo
+                            LEFT JOIN (
+                                SELECT TN05_TM02_Codigo, TN05_TM01_EstadoActual,
+                                       ROW_NUMBER() OVER (PARTITION BY TN05_TM02_Codigo ORDER BY TN05_Fecha DESC) as rn
+                                FROM [SIIR-ProdV1].[dbo].[TN05_Historico_Estado]
+                                WHERE TN05_TM02_Tipo = 1
+                            ) h ON e.TM02_CODIGO = h.TN05_TM02_Codigo AND h.rn = 1
                             WHERE e.TM02_CODIGO = @entidadId";
                         string razonSocial = "";
                         string numeroTramite = "";
@@ -60,7 +67,7 @@ namespace InscripcionEntidades
                                 {
                                     razonSocial = reader["TM02_NOMBRE"]?.ToString() ?? "";
                                     numeroTramite = reader["NumeroTramite"]?.ToString() ?? "";
-                                    estadoAnterior = reader["TM02_TM01_CODIGO"] != DBNull.Value ? Convert.ToInt32(reader["TM02_TM01_CODIGO"]) : 0;
+                                    estadoAnterior = reader["EstadoActual"] != DBNull.Value ? Convert.ToInt32(reader["EstadoActual"]) : 0;
                                 }
                             }
                         }

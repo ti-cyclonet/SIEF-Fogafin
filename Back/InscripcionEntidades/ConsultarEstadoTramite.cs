@@ -82,7 +82,7 @@ public class ConsultarEstadoTramite
                     TM2.TM02_NIT AS Nit,
                     CAST(TM2.TM02_TM08_Consecutivo AS VARCHAR) + 
                     CAST(TM2.TM02_TM01_CodigoSectorF AS VARCHAR) + 
-                    CAST(YEAR(TM2.TM02_Fecha) AS VARCHAR) AS NumeroTramiteCalculado,
+                    CAST(YEAR(TM2.TM02_FECHAINSCRIPCION) AS VARCHAR) AS NumeroTramiteCalculado,
                     TM1.TM01_Nombre AS EstadoTramite,
                     CASE 
                         WHEN TM1.TM01_Nombre = 'En validación de documentos' THEN 
@@ -125,13 +125,8 @@ public class ConsultarEstadoTramite
                     END AS CargoResponsable
                 FROM 
                     dbo.TM02_ENTIDADFINANCIERA TM2
-                INNER JOIN (
-                    SELECT TN05_TM02_Codigo, TN05_TM01_EstadoActual,
-                           ROW_NUMBER() OVER (PARTITION BY TN05_TM02_Codigo ORDER BY TN05_Fecha DESC) as rn
-                    FROM TN05_Historico_Estado
-                ) he ON TM2.TM02_CODIGO = he.TN05_TM02_Codigo AND he.rn = 1
                 INNER JOIN 
-                    dbo.TM01_Estado TM1 ON he.TN05_TM01_EstadoActual = TM1.TM01_Codigo
+                    dbo.TM01_Estado TM1 ON TM2.TM02_TM01_CODIGO = TM1.TM01_Codigo
                 WHERE 
                     TM2.TM02_NIT = @Nit AND 
                     TM2.TM02_TM08_Consecutivo = @Consecutivo
@@ -150,13 +145,16 @@ public class ConsultarEstadoTramite
                     {
                         if (await reader.ReadAsync())
                         {
+                            var estadoTramite = reader["EstadoTramite"].ToString()!;
+                            _logger.LogInformation($"Estado obtenido de BD: {estadoTramite}");
+                            
                             resultData = new EstadoTramiteDto
                             {
                                 NombreEntidad = reader["NombreEntidad"].ToString()!,
                                 Nit = reader["Nit"].ToString()!,
                                 // El número de trámite devuelto es el valor correcto (consecutivo + tipo + año)
                                 NumeroTramite = reader["NumeroTramiteCalculado"].ToString()!,
-                                EstadoTramite = reader["EstadoTramite"].ToString()!,
+                                EstadoTramite = estadoTramite,
                                 NombreResponsable = reader["NombreResponsable"].ToString()!,
                                 CargoResponsable = reader["CargoResponsable"].ToString()!
                             };

@@ -92,16 +92,18 @@
 
       let tasaConfig = 0.115; // valor por defecto
 
-      // 🔹 Cargar configuración desde archivo plano [config.json]
-      fetch("../assets/config.json")
+      // 🔹 Cargar configuración desde backend
+      fetch("https://app-inscripcion-entidades-dev-bfbrcqgdgfbbaxhq.eastus2-01.azurewebsites.net/api/parametros")
         .then((res) => res.json())
         .then((data) => {
-          tasaConfig = typeof data.tasa === "number" ? data.tasa : tasaConfig;
-          console.log("✅ Tasa cargada desde config:", tasaConfig);
+          if (data['TASA_INSCRIPCION']) {
+            tasaConfig = parseFloat(data['TASA_INSCRIPCION']) || 0.115;
+          }
+          console.log("✅ Tasa cargada desde backend:", tasaConfig);
         })
         .catch((err) => {
           console.error(
-            "⚠️ No se pudo cargar el archivo de configuración:",
+            "⚠️ No se pudo cargar la configuración desde backend:",
             err
           );
         });

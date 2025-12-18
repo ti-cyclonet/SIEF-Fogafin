@@ -25,6 +25,7 @@ namespace InscripcionEntidades
             {
                 var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
                 var url = query["url"];
+                var inline = query["inline"];
 
                 if (string.IsNullOrEmpty(url))
                 {
@@ -40,9 +41,9 @@ namespace InscripcionEntidades
                 var uri = new Uri(url);
                 var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
                 var containerName = segments[0];
-                var blobName = string.Join("/", segments.Skip(1));
+                var blobName = Uri.UnescapeDataString(string.Join("/", segments.Skip(1)));
                 
-                _logger.LogInformation($"Container: {containerName}, Blob: {blobName}");
+
 
                 var containerClient = blobServiceClient.GetBlobContainerClient(containerName);
                 var blobClient = containerClient.GetBlobClient(blobName);
@@ -56,10 +57,21 @@ namespace InscripcionEntidades
 
                 var blobDownloadInfo = await blobClient.DownloadAsync();
                 var contentType = blobDownloadInfo.Value.Details.ContentType ?? "application/octet-stream";
+                
+                // Forzar Content-Type correcto para PDFs
+                if (blobName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                {
+                    contentType = "application/pdf";
+                }
 
                 var response = req.CreateResponse(HttpStatusCode.OK);
                 response.Headers.Add("Content-Type", contentType);
-                response.Headers.Add("Content-Disposition", $"inline; filename=\"{Path.GetFileName(blobName)}\"");
+                
+                var disposition = string.Equals(inline, "true", StringComparison.OrdinalIgnoreCase) || string.Equals(inline, "1", StringComparison.OrdinalIgnoreCase)
+                    ? "inline"
+                    : "attachment";
+                    
+                response.Headers.Add("Content-Disposition", $"{disposition}; filename=\"{Path.GetFileName(blobName)}\"");
 
                 await blobDownloadInfo.Value.Content.CopyToAsync(response.Body);
                 return response;

@@ -40,7 +40,6 @@ namespace InscripcionEntidades
                             e.TM02_PaginaWeb,
                             e.TM02_FECHAINSCRIPCION,
                             e.TM02_Nombre_Rep,
-
                             e.TM02_Identificacion_Rep,
                             e.TM02_Correo_Rep,
                             e.TM02_Telefono_Rep,
@@ -56,16 +55,22 @@ namespace InscripcionEntidades
                             e.TM02_CertificadoSuper,
                             s.TM01_NOMBRE as TipoEntidad,
                             est.TM01_Nombre as EstadoTramite,
-                            est.TM01_Codigo,
+                            h.TN05_TM01_EstadoActual as EstadoId,
                             CONCAT(c.TM08_Consecutivo, c.TM08_TM01_Codigo, c.TM08_Ano) as NumeroTramite
                         FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] e
                         LEFT JOIN [SIIR-ProdV1].[dbo].[TM01_SECTORFINANCIERO] s ON e.TM02_TM01_CodigoSectorF = s.TM01_CODIGO
                         LEFT JOIN [SIIR-ProdV1].[dbo].[TM08_ConsecutivoEnt] c ON e.TM02_TM08_Consecutivo = c.TM08_Consecutivo
-                        LEFT JOIN [SIIR-ProdV1].[dbo].[TM01_Estado] est ON e.TM02_CODIGO = est.TM01_TM02_Codigo
+                        LEFT JOIN (
+                            SELECT TN05_TM02_Codigo, TN05_TM01_EstadoActual,
+                                   ROW_NUMBER() OVER (PARTITION BY TN05_TM02_Codigo ORDER BY TN05_Fecha DESC) as rn
+                            FROM [SIIR-ProdV1].[dbo].[TN05_Historico_Estado]
+                            WHERE TN05_TM02_Tipo = 1
+                        ) h ON e.TM02_CODIGO = h.TN05_TM02_Codigo AND h.rn = 1
+                        LEFT JOIN [SIIR-ProdV1].[dbo].[TM01_Estado] est ON h.TN05_TM01_EstadoActual = est.TM01_Codigo
                         WHERE e.TM02_CODIGO = @entidadId";
 
                     string queryAdjuntos = @"
-                        SELECT TN07_Archivo 
+                        SELECT TN07_Id, TN07_Archivo 
                         FROM [SIIR-ProdV1].[dbo].[TN07_Adjuntos] 
                         WHERE TN07_TM02_Codigo = @entidadId";
                         
@@ -92,7 +97,7 @@ namespace InscripcionEntidades
                                 numeroTramite = reader["NumeroTramite"]?.ToString() ?? "";
                                 fechaInscripcion = reader["TM02_FECHAINSCRIPCION"]?.ToString() ?? "";
                                 estadoTramite = reader["EstadoTramite"]?.ToString() ?? "";
-                                estadoId = reader["TM01_Codigo"]?.ToString() ?? "";
+                                estadoId = reader["EstadoId"]?.ToString() ?? "";
                                 nombreRepresentante = reader["TM02_Nombre_Rep"]?.ToString() ?? "";
                                 identificacionRepresentante = reader["TM02_Identificacion_Rep"]?.ToString() ?? "";
                                 correoRepresentante = reader["TM02_Correo_Rep"]?.ToString() ?? "";
@@ -118,6 +123,7 @@ namespace InscripcionEntidades
 
                         // Obtener archivos adjuntos
                         var archivos = new List<string>();
+                        var archivosConId = new List<object>();
                         using (var commandAdjuntos = new SqlCommand(queryAdjuntos, connection))
                         {
                             commandAdjuntos.Parameters.AddWithValue("@entidadId", entidadId);
@@ -125,7 +131,10 @@ namespace InscripcionEntidades
                             {
                                 while (await readerAdjuntos.ReadAsync())
                                 {
-                                    archivos.Add(readerAdjuntos["TN07_Archivo"]?.ToString() ?? "");
+                                    var url = readerAdjuntos["TN07_Archivo"]?.ToString() ?? "";
+                                    var id = readerAdjuntos["TN07_Id"]?.ToString() ?? "";
+                                    archivos.Add(url);
+                                    archivosConId.Add(new { id, url });
                                 }
                             }
                         }
@@ -162,8 +171,8 @@ namespace InscripcionEntidades
                             paginaWeb,
                             numeroTramite,
                             fechaInscripcion,
-                            estadoTramite,
-                            estadoId,
+                            estadoNombre = estadoTramite,
+                            estadoId = !string.IsNullOrEmpty(estadoId) ? int.Parse(estadoId) : 0,
                             nombreRepresentante,
                             identificacionRepresentante,
                             correoRepresentante,
@@ -178,6 +187,7 @@ namespace InscripcionEntidades
                             fechaPago,
                             rutaComprobantePago,
                             archivos,
+                            archivosConId,
                             pagos
                         };
 

@@ -30,16 +30,11 @@ namespace InscripcionEntidades.Services
                     ISNULL(ef.TM02_CapitalSuscrito, 0),
                     ISNULL(ef.TM02_ValorPagado, 0),
                     ef.TM02_FechaPago,
-                    COALESCE(he.TN05_TM01_EstadoActual, 0),
-                    COALESCE(est.TM01_Nombre, 'Sin estado')
+                    ef.TM02_TM01_CODIGO,
+                    ISNULL(est.TM01_Nombre, 'Sin estado')
                 FROM TM02_ENTIDADFINANCIERA ef
                 LEFT JOIN TM01_SECTORFINANCIERO sf ON ef.TM02_TM01_CodigoSectorF = sf.TM01_CODIGO
-                LEFT JOIN (
-                    SELECT TN05_TM02_Codigo, TN05_TM01_EstadoActual,
-                           ROW_NUMBER() OVER (PARTITION BY TN05_TM02_Codigo ORDER BY TN05_Fecha DESC) as rn
-                    FROM TN05_Historico_Estado
-                ) he ON ef.TM02_CODIGO = he.TN05_TM02_Codigo AND he.rn = 1
-                LEFT JOIN TM01_Estado est ON he.TN05_TM01_EstadoActual = est.TM01_Codigo
+                LEFT JOIN TM01_Estado est ON ef.TM02_TM01_CODIGO = est.TM01_Codigo
                 ORDER BY ef.TM02_FECHAINSCRIPCION DESC";
 
             using var connection = new SqlConnection(_connectionString);
@@ -78,71 +73,76 @@ namespace InscripcionEntidades.Services
         {
             var entidades = new List<EntidadFiltro>();
             
-            var query = @"
-                SELECT 
-                    ef.TM02_CODIGO as Id,
-                    ef.TM02_NOMBRE as RazonSocial,
-                    ef.TM02_NIT as Nit,
-                    ef.TM02_TM01_CodigoSectorF as SectorId,
-                    he.TN05_TM01_EstadoActual as EstadoId,
-                    est.TM01_Nombre as EstadoNombre
-                FROM TM02_ENTIDADFINANCIERA ef
-                LEFT JOIN (
-                    SELECT TN05_TM02_Codigo, TN05_TM01_EstadoActual,
-                           ROW_NUMBER() OVER (PARTITION BY TN05_TM02_Codigo ORDER BY TN05_Fecha DESC) as rn
-                    FROM TN05_Historico_Estado
-                ) he ON ef.TM02_CODIGO = he.TN05_TM02_Codigo AND he.rn = 1
-                LEFT JOIN TM01_Estado est ON he.TN05_TM01_EstadoActual = est.TM01_Codigo";
-
+            var whereConditions = new List<string>();
             var parameters = new List<SqlParameter>();
-
+            
+            // Filtro por sector
             if (sectorId.HasValue)
             {
-                query += " AND ef.TM02_TM01_CODIGO = @SectorId";
+                whereConditions.Add("ef.TM02_TM01_CodigoSectorF = @SectorId");
                 parameters.Add(new SqlParameter("@SectorId", sectorId.Value));
-            }
-
-            if (estadoIds != null && estadoIds.Any())
-            {
-                var estadoParams = new List<string>();
-                for (int i = 0; i < estadoIds.Count; i++)
-                {
-                    var paramName = $"@EstadoId{i}";
-                    estadoParams.Add(paramName);
-                    parameters.Add(new SqlParameter(paramName, estadoIds[i]));
-                }
-                query += $" AND he.TN05_TM01_EstadoActual IN ({string.Join(",", estadoParams)})";
-            }
-            else if (estadoId.HasValue)
-            {
-                query += " AND he.TN05_TM01_EstadoActual = @EstadoId";
-                parameters.Add(new SqlParameter("@EstadoId", estadoId.Value));
             }
             else
             {
-                query += " AND he.TN05_TM01_EstadoActual IN (12, 13, 14)";
+                whereConditions.Add("ef.TM02_TM01_CodigoSectorF IN (1, 2, 4, 28)");
             }
-
-            using var connection = new SqlConnection(_connectionString);
-            using var command = new SqlCommand(query, connection);
             
-            command.CommandTimeout = 30; // 30 segundos timeout
+            // Filtro por estado(s)
+            if (estadoIds != null && estadoIds.Count > 0)
+            {
+                var estadoParams = string.Join(",", estadoIds.Select((_, i) => $"@EstadoId{i}"));
+                whereConditions.Add($"ef.TM02_TM01_CODIGO IN ({estadoParams})");
+                for (int i = 0; i < estadoIds.Count; i++)
+                {
+                    parameters.Add(new SqlParameter($"@EstadoId{i}", estadoIds[i]));
+                }
+            }
+            else if (estadoId.HasValue)
+            {
+                whereConditions.Add("ef.TM02_TM01_CODIGO = @EstadoId");
+                parameters.Add(new SqlParameter("@EstadoId", estadoId.Value));
+            }
+            
+            var whereClause = whereConditions.Count > 0 ? "WHERE " + string.Join(" AND ", whereConditions) : "";
+            
+            var query = $@"
+                SELECT 
+                    ef.TM02_CODIGO as Id, 
+                    ef.TM02_NOMBRE as RazonSocial, 
+                    ef.TM02_NIT as Nit, 
+                    ISNULL(ef.TM02_TM01_CodigoSectorF, 0) as SectorId, 
+                    ef.TM02_TM01_CODIGO as EstadoId, 
+                    ISNULL(est.TM01_Nombre, 'Sin estado') as EstadoNombre,
+                    ISNULL(sf.TM01_NOMBRE, '') as TipoEntidad
+                FROM TM02_ENTIDADFINANCIERA ef
+                LEFT JOIN TM01_SECTORFINANCIERO sf ON ef.TM02_TM01_CodigoSectorF = sf.TM01_CODIGO
+                LEFT JOIN TM01_Estado est ON ef.TM02_TM01_CODIGO = est.TM01_Codigo
+                {whereClause}
+                ORDER BY ef.TM02_FECHAINSCRIPCION DESC";
+            
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+            
+            using var command = new SqlCommand(query, connection);
+            command.CommandTimeout = 30;
             command.Parameters.AddRange(parameters.ToArray());
             
-            await connection.OpenAsync();
             using var reader = await command.ExecuteReaderAsync();
             
             while (await reader.ReadAsync())
             {
-                entidades.Add(new EntidadFiltro
+                var entidad = new EntidadFiltro
                 {
                     Id = reader.GetInt32(0),
                     RazonSocial = reader.IsDBNull(1) ? "" : reader.GetString(1),
                     Nit = reader.IsDBNull(2) ? "" : reader.GetString(2),
-                    SectorId = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    SectorId = reader.GetInt32(3),
                     EstadoId = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
-                    EstadoNombre = reader.IsDBNull(5) ? "Sin estado" : reader.GetString(5)
-                });
+                    EstadoNombre = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                    TipoEntidad = reader.IsDBNull(6) ? "" : reader.GetString(6)
+                };
+
+                entidades.Add(entidad);
             }
 
             return entidades;

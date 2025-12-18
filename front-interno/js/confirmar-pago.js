@@ -49,19 +49,17 @@ async function confirmarPago() {
       icon: 'success',
       title: 'Pago confirmado',
       text: 'El estado ha cambiado a "Pendiente de aprobación final"',
-      timer: 2000,
-      showConfirmButton: false
-    }).then(() => {
-      location.reload();
+      confirmButtonText: 'Cerrar'
+    }).then(async () => {
+      await loadEntidadesGestionables();
+      const buscarEntidad = document.getElementById('buscarEntidad');
+      const selectEntidad = document.getElementById('selectEntidad');
+      if (buscarEntidad) buscarEntidad.value = '';
+      if (selectEntidad) selectEntidad.classList.add('d-none');
+      limpiarDetalles();
     });
-
-    detalle.estadoNombre = 'Pendiente de aprobación final';
-    document.getElementById('selectEstado').textContent = 'Pendiente de aprobación final';
-    
-    // Deshabilitar botones de pago
-    document.getElementById('btnConfirmarPago').disabled = true;
-    document.getElementById('btnCancelarPago').disabled = true;
   } catch (error) {
     Swal.fire('Error', 'No se pudo confirmar el pago', 'error');
+    console.error('Error al confirmar pago:', error);
   }
 }

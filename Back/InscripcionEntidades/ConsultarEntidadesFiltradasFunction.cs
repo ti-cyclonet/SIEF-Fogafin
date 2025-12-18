@@ -38,40 +38,29 @@ namespace InscripcionEntidades.Functions
                 estadoIds = estadoIdsStr.Split(',').Where(s => int.TryParse(s.Trim(), out _)).Select(s => int.Parse(s.Trim())).ToList();
             }
 
-            // --- 2. Obtener datos de la base de datos ---
-            var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
-            var dbService = new DatabaseService(connectionString);
-            
-            List<EntidadFiltro> entidadesFiltradas;
+            // --- 2. Crear respuesta inmediatamente ---
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            response.Headers.Add("Content-Type", "application/json; charset=utf-8");
+
             try
             {
-                entidadesFiltradas = await dbService.GetEntidadesFiltradasAsync(sectorId, estadoId, estadoIds);
+                // --- 3. Obtener datos de la base de datos ---
+                var connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+                var dbService = new DatabaseService(connectionString);
+                
+                var entidadesFiltradas = await dbService.GetEntidadesFiltradasAsync(sectorId, estadoId, estadoIds);
+                
+                // --- 4. Serializar y escribir respuesta ---
+                await response.WriteStringAsync(JsonSerializer.Serialize(entidadesFiltradas));
+                return response;
             }
             catch (Exception ex)
             {
-                log.LogError($"Error al consultar base de datos: {ex.Message}");
-                return req.CreateResponse(HttpStatusCode.InternalServerError);
+                log.LogError($"Error: {ex.Message}");
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("{\"error\":\"Error interno del servidor\"}");
+                return errorResponse;
             }
-
-            // --- 3. Retornar la lista de entidades usando HttpResponseData ---
-
-            // ⭐️ Crear la respuesta
-            var response = req.CreateResponse(HttpStatusCode.OK);
-
-            // ⭐️ Serializar el objeto a JSON y escribirlo en el cuerpo de la respuesta
-            try
-            {
-                response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-                await response.WriteStringAsync(JsonSerializer.Serialize(entidadesFiltradas));
-            }
-            catch (System.Exception ex)
-            {
-                log.LogError($"Error al serializar la respuesta: {ex.Message}");
-                // Si falla, retornamos un error 500
-                return req.CreateResponse(HttpStatusCode.InternalServerError);
-            }
-
-            return response;
         }
 
 
