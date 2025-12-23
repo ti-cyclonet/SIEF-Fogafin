@@ -46,11 +46,19 @@ namespace InscripcionEntidades
                             h.TN05_TN03_Usuario,
                             h.TN05_Observaciones,
                             ea.TM01_Nombre AS EstadoAnterior,
-                            ec.TM01_Nombre AS EstadoActual
+                            ec.TM01_Nombre AS EstadoActual,
+                            e.TM02_NIT
                         FROM [SIIR-ProdV1].[dbo].[TN05_Historico_Estado] h
                         LEFT JOIN [SIIR-ProdV1].[dbo].[TM01_Estado] ea ON h.TN05_TM01_EstadoAnterior = ea.TM01_Codigo
                         LEFT JOIN [SIIR-ProdV1].[dbo].[TM01_Estado] ec ON h.TN05_TM01_EstadoActual = ec.TM01_Codigo
+                        INNER JOIN [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] e ON h.TN05_TM02_Codigo = e.TM02_CODIGO
                         WHERE h.TN05_TM02_Codigo = @entidadId
+                           OR h.TN05_TM02_Codigo IN (
+                               SELECT TM02_CODIGO 
+                               FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] e2
+                               WHERE e2.TM02_NIT LIKE REPLACE((SELECT TM02_NIT FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] WHERE TM02_CODIGO = @entidadId), 'R', '') + '%'
+                                  OR (SELECT TM02_NIT FROM [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] WHERE TM02_CODIGO = @entidadId) LIKE REPLACE(e2.TM02_NIT, 'R', '') + '%'
+                           )
                         ORDER BY h.TN05_Fecha DESC";
 
                     using (var command = new SqlCommand(query, connection))
@@ -69,7 +77,8 @@ namespace InscripcionEntidades
                                     TN05_TN03_Usuario = reader["TN05_TN03_Usuario"]?.ToString(),
                                     TN05_Observaciones = reader["TN05_Observaciones"]?.ToString(),
                                     EstadoAnterior = reader["EstadoAnterior"]?.ToString(),
-                                    EstadoActual = reader["EstadoActual"]?.ToString()
+                                    EstadoActual = reader["EstadoActual"]?.ToString(),
+                                    NIT = reader["TM02_NIT"]?.ToString()
                                 });
                             }
                         }

@@ -9,21 +9,30 @@ async function confirmarPago() {
 
   const tabla = document.querySelector('#tablaPagos tbody');
   if (!tabla || tabla.rows.length === 0) {
-    Swal.fire('Warning', 'Debe adjuntar los extractos con la información del pago', 'warning');
+    Swal.fire('Warning', 'Debe adjuntar al menos un extracto con la información del pago', 'warning');
     return;
   }
 
-  let sumaComprobantes = 0;
+  // Calcular suma de todos los extractos
+  let sumaExtractos = 0;
   for (let row of tabla.rows) {
-    const valorTexto = row.cells[1].textContent.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
-    sumaComprobantes += parseFloat(valorTexto) || 0;
+    const valor = parseFloat(row.dataset.valor) || 0;
+    sumaExtractos += valor;
   }
 
-  const valorPagadoTexto = document.getElementById('valorPagado').textContent.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
-  const valorPagado = parseFloat(valorPagadoTexto) || 0;
+  // Obtener valor esperado del pago (desde el campo valorPagado)
+  const valorPagadoElement = document.getElementById('valorPagado');
+  const valorEsperadoTexto = valorPagadoElement ? valorPagadoElement.textContent.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.') : '0';
+  const valorEsperado = parseFloat(valorEsperadoTexto) || 0;
 
-  if (Math.abs(sumaComprobantes - valorPagado) > 0.01) {
-    Swal.fire('Error', `Los valores no coinciden. Suma de comprobantes: ${formatearMonedaConDecimales(sumaComprobantes)} vs Valor pagado: ${formatearMonedaConDecimales(valorPagado)}`, 'error');
+  // Validar que la suma de extractos coincida con el valor esperado
+  const diferencia = Math.abs(sumaExtractos - valorEsperado);
+  if (diferencia > 0.01) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Los valores no coinciden',
+      text: 'La sumatoria de los valores incluidos en los comprobantes debe ser igual al monto indicado en valor pagado por inscripción.'
+    });
     return;
   }
 

@@ -497,16 +497,17 @@ namespace InscripcionEntidades
                     // Envío de correo de confirmación al usuario (con PDF adjunto)
                     if (correosConfirmacionFiltrados.Any())
                     {
-                        var plantillaUsuario = $@"
-                        <p>Estimado(a) {representanteLegal},</p>
-                        <p>La entidad <strong>{entidadNombre}</strong> ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín.</p>
-                        <p>El trámite se ha registrado exitosamente con el número <strong>{numeroTramiteStr}</strong>.</p>
-                        <p>Puede consultar su estado en el siguiente enlace:</p>
-                        <p><a href='{linkConsulta}'>{linkConsulta}</a></p>
-                        <p>Cordial saludo,<br/><br/>
-                        Departamento de Sistema de Seguro de Depósitos<br/>
-                        Fondo de Garantías de Instituciones Financieras – Fogafín<br/>
-                        PBX: 601 4321370 extensiones 255 - 142</p>";
+                        var plantillaUsuario = $@"Doctor(a) {representanteLegal}:<br>
+<br>
+La entidad {entidadNombre} ha iniciado el proceso de inscripción al Sistema de Seguro de Depósitos de Fogafín, con el número del trámite No. {numeroTramiteStr}.<br>
+<br>
+Puede consultar el estado del trámite en el siguiente link https://sadevsiefexterno.z20.web.core.windows.net/local/pages/consulta.html.<br>
+<br>
+Cordial saludo,<br>
+<br>
+Departamento de Sistema de Seguro de Depósitos<br>
+Fondo de Garantías de Instituciones Financieras – Fogafín<br>
+PBX: 601 4321370 extensiones 255 - 142";
                         
                         var emailUsuarioPayload = new
                         {
@@ -602,45 +603,201 @@ namespace InscripcionEntidades
             string fileName = $"{data.Nit}_{numeroTramite}_resumen.pdf";
             string tempPath = Path.Combine(Path.GetTempPath(), fileName);
 
+            // Obtener el logo de Fogafín
+            byte[]? logoBytes = null;
+            
+            try
+            {
+                // Buscar el logo en diferentes ubicaciones posibles
+                string[] possiblePaths = {
+                    Path.Combine(Directory.GetCurrentDirectory(), "assets", "images", "logo.jpg"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "images", "logo.jpg"),
+                    Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "", "assets", "images", "logo.jpg"),
+                    "assets/images/logo.jpg",
+                    "../assets/images/logo.jpg"
+                };
+
+                foreach (string logoPath in possiblePaths)
+                {
+                    if (File.Exists(logoPath))
+                    {
+                        logoBytes = await File.ReadAllBytesAsync(logoPath);
+                        _logger.LogInformation($"Logo cargado desde: {logoPath}");
+                        break;
+                    }
+                }
+                
+                if (logoBytes == null)
+                {
+                    _logger.LogWarning($"Logo no encontrado en ninguna de las rutas: {string.Join(", ", possiblePaths)}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"No se pudo cargar el logo: {ex.Message}");
+            }
+
             Document.Create(container =>
             {
                 container.Page(page =>
                 {
-                    page.Margin(40);
-                    page.DefaultTextStyle(x => x.FontSize(11).FontFamily("Helvetica"));
+                    page.Size(PageSizes.A4);
+                    page.Margin(30);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial"));
 
-                    page.Header()
-                        .Padding(10)
-                        .Background("#003366")
-                        .AlignCenter()
-                        .Text("Resumen de Inscripción de Entidad")
-                        .FontSize(18)
-                        .Bold()
-                        .FontColor("#FFFFFF");
-
-                    page.Content().PaddingVertical(20).Column(col =>
+                    page.Header().Column(header =>
                     {
-                        col.Spacing(10);
-                        col.Item().Border(1).BorderColor("#CCCCCC").Padding(20).Column(inner =>
+                        // Logo de Fogafín
+                        if (logoBytes != null)
                         {
-                            inner.Spacing(6);
-                            inner.Item().Text($"Número de Trámite: {numeroTramite}").Bold().FontSize(13).FontColor("#003366");
-                            inner.Item().Text($"Razón Social: {data.Nombre}");
-                            inner.Item().Text($"NIT: {data.Nit}");
-                            inner.Item().Text($"Tipo de Entidad: {data.TipoEntidad}");
-                            inner.Item().Text($"Capital Suscrito: ${data.CapitalSuscrito:N0}");
-                            inner.Item().Text($"Valor Pagado: ${data.ValorPagado:N0}");
-                            inner.Item().Text($"Representante: {data.NombreRep}");
-                            inner.Item().Text($"Correo: {data.CorreoNoti}");
-                            inner.Item().Text($"Fecha: {DateTime.Now:dd/MM/yyyy}");
+                            header.Item().AlignLeft().Width(150).Height(40).Image(logoBytes);
+                        }
+                        else
+                        {
+                            header.Item().AlignLeft().Text("Fogafín")
+                                .FontSize(16).Bold().FontColor("#0066CC");
+                        }
+                        
+                        header.Item().PaddingTop(10).Text("Fondo de Garantías de Instituciones Financieras")
+                            .FontSize(8).FontColor("#666666");
+                    });
+
+                    page.Content().PaddingTop(20).Column(content =>
+                    {
+                        // Información del destinatario
+                        content.Item().PaddingBottom(15).Column(destinatario =>
+                        {
+                            destinatario.Item().Text($"Señor (a): {data.NombreRep}")
+                                .FontSize(10).Bold();
+                        });
+
+                        // Texto introductorio
+                        content.Item().PaddingBottom(20).Text(
+                            "A continuación, encontrará la información incluida en el formulario de inscripción de su entidad. Recuerde " +
+                            "que puede consultar el estado de su trámite en la página de Fogafín: www.fogafin.gov.co")
+                            .FontSize(10).LineHeight(1.2f);
+
+                        // Sección: Datos de la entidad
+                        content.Item().PaddingBottom(15).Column(datosEntidad =>
+                        {
+                            datosEntidad.Item().Text("Datos de la entidad")
+                                .FontSize(12).Bold().FontColor("#4CAF50");
+                            
+                            datosEntidad.Item().PaddingTop(10).Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.RelativeColumn(1);
+                                    columns.RelativeColumn(2);
+                                });
+
+                                // Razón social
+                                table.Cell().Padding(5).Text("Razón social:").FontSize(9);
+                                table.Cell().Padding(5).Text(data.Nombre).FontSize(9).Bold();
+
+                                // NIT
+                                table.Cell().Padding(5).Text("Nit:").FontSize(9);
+                                table.Cell().Padding(5).Text(data.Nit).FontSize(9).Bold();
+
+                                // Tipo de entidad
+                                table.Cell().Padding(5).Text("Tipo de entidad:").FontSize(9);
+                                table.Cell().Padding(5).Text(ObtenerTipoEntidad(data.TipoEntidad)).FontSize(9).Bold();
+
+                                // Fecha de resolución de constitución
+                                table.Cell().Padding(5).Text("Fecha de resolución de constitución:").FontSize(9);
+                                table.Cell().Padding(5).Text(data.FechaConstitucion.ToString("dd/MMMM/yyyy")).FontSize(9).Bold();
+
+                                // Capital suscrito
+                                table.Cell().Padding(5).Text("Capital suscrito:").FontSize(9);
+                                table.Cell().Padding(5).Text($"$ {data.CapitalSuscrito:N2}").FontSize(9).Bold();
+
+                                // Página web
+                                table.Cell().Padding(5).Text("Página web:").FontSize(9);
+                                table.Cell().Padding(5).Text(data.PaginaWeb ?? "N/A").FontSize(9).Bold();
+
+                                // Correo de notificación
+                                table.Cell().Padding(5).Text("Correo de notificación:").FontSize(9);
+                                table.Cell().Padding(5).Text(data.CorreoNoti).FontSize(9).Bold();
+                            });
+                        });
+
+                        // Sección: Información del pago de la inscripción
+                        content.Item().PaddingBottom(15).Column(infoPago =>
+                        {
+                            infoPago.Item().Text("Información del pago de la inscripción")
+                                .FontSize(12).Bold().FontColor("#4CAF50");
+                            
+                            infoPago.Item().PaddingTop(10).Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.RelativeColumn(1);
+                                    columns.RelativeColumn(2);
+                                });
+
+                                // Valor pagado por inscripción
+                                table.Cell().Padding(5).Text("Valor pagado por inscripción:").FontSize(9);
+                                table.Cell().Padding(5).Text($"$ {data.ValorPagado:N2}").FontSize(9).Bold();
+
+                                // Fecha de pago de la inscripción
+                                table.Cell().Padding(5).Text("Fecha de pago de la inscripción:").FontSize(9);
+                                table.Cell().Padding(5).Text(data.FechaPago?.ToString("dd/MMMM/yyyy") ?? "N/A").FontSize(9).Bold();
+                            });
+                        });
+
+                        // Sección: Información del Representante legal o apoderado
+                        content.Item().PaddingBottom(15).Column(infoRep =>
+                        {
+                            infoRep.Item().Text("Información del Representante legal o apoderado")
+                                .FontSize(12).Bold().FontColor("#4CAF50");
+                            
+                            infoRep.Item().PaddingTop(10).Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.RelativeColumn(1);
+                                    columns.RelativeColumn(2);
+                                });
+
+                                // Nombre(s) y Apellido(s)
+                                table.Cell().Padding(5).Text("Nombre(s) y Apellido(s):").FontSize(9);
+                                table.Cell().Padding(5).Text(data.NombreRep).FontSize(9).Bold();
+
+                                // Tipo de identificación
+                                table.Cell().Padding(5).Text("Tipo de identificación:").FontSize(9);
+                                table.Cell().Padding(5).Text(ObtenerTipoDocumento(data.TipoDoc)).FontSize(9).Bold();
+
+                                // Número de documento
+                                table.Cell().Padding(5).Text("Número de documento:").FontSize(9);
+                                table.Cell().Padding(5).Text(data.IdentificacionRep.ToString()).FontSize(9).Bold();
+
+                                // Correo electrónico
+                                table.Cell().Padding(5).Text("Correo electrónico:").FontSize(9);
+                                table.Cell().Padding(5).Text(data.CorreoRep).FontSize(9).Bold();
+
+                                // Teléfono
+                                table.Cell().Padding(5).Text("Teléfono:").FontSize(9);
+                                table.Cell().Padding(5).Text(data.TelefonoRep ?? "N/A").FontSize(9).Bold();
+
+                                // Cargo
+                                table.Cell().Padding(5).Text("Cargo:").FontSize(9);
+                                table.Cell().Padding(5).Text(data.CargoRep).FontSize(9).Bold();
+                            });
+                        });
+
+                        // Información adicional
+                        content.Item().PaddingTop(20).Column(adicional =>
+                        {
+                            adicional.Item().Text("Cordialmente,")
+                                .FontSize(10).Bold();
+                            
+                            adicional.Item().PaddingTop(10).Text("Fondo de Garantías de Instituciones Financieras")
+                                .FontSize(9).Italic();
                         });
                     });
 
-                    page.Footer()
-                        .AlignCenter()
-                        .Text("© Fogafín - SIEF")
-                        .FontSize(9)
-                        .FontColor("#999999");
+                    page.Footer().AlignCenter().Text($"Generado el {DateTime.Now:dd/MM/yyyy HH:mm}")
+                        .FontSize(8).FontColor("#999999");
                 });
             }).GeneratePdf(tempPath);
 
@@ -654,6 +811,32 @@ namespace InscripcionEntidades
             }
 
             return (blobClient.Uri.ToString(), tempPath);
+        }
+
+        private string ObtenerTipoEntidad(int tipoEntidad)
+        {
+            return tipoEntidad switch
+            {
+                1 => "Bancos",
+                2 => "Corporaciones Financieras",
+                3 => "Compañías de Financiamiento",
+                4 => "Cooperativas Financieras",
+                _ => "Otro"
+            };
+        }
+
+        private string ObtenerTipoDocumento(string tipoDoc)
+        {
+            return tipoDoc switch
+            {
+                "1" => "Cédula de ciudadanía",
+                "2" => "Cédula de extranjería",
+                "5" => "Pasaporte",
+                "CC" => "Cédula de ciudadanía",
+                "CE" => "Cédula de extranjería",
+                "PA" => "Pasaporte",
+                _ => tipoDoc
+            };
         }
 
         private async Task<bool> EnviarCorreoAsync(object payload, string? pdfPath = null, int? tm02Codigo = null, string? numeroTramite = null)

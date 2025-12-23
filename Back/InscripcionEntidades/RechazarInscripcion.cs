@@ -61,16 +61,18 @@ namespace InscripcionEntidades
                                 await command.ExecuteNonQueryAsync();
                             }
 
-                            // 2.1. Actualizar estado a "RECHAZADO SSD" (código 1)
+                            // 2.1. Actualizar estado a "RECHAZADO SSD" (código 1) y agregar 'R' al NIT
                             string updateEntidadEstadoQuery = @"
                                 UPDATE [SIIR-ProdV1].[dbo].[TM02_ENTIDADFINANCIERA] 
-                                SET TM02_TM01_CODIGO = 1
-                                WHERE TM02_CODIGO = @entidadId";
+                                SET TM02_TM01_CODIGO = 1,
+                                    TM02_NIT = TM02_NIT + 'R'
+                                WHERE TM02_CODIGO = @entidadId AND TM02_NIT NOT LIKE '%R'";
 
                             using (var command = new SqlCommand(updateEntidadEstadoQuery, connection, transaction))
                             {
                                 command.Parameters.AddWithValue("@entidadId", data.EntidadId);
-                                await command.ExecuteNonQueryAsync();
+                                int rowsAffected = await command.ExecuteNonQueryAsync();
+                                _logger.LogInformation($"Entidad {data.EntidadId} actualizada. Filas afectadas: {rowsAffected}");
                             }
 
                             // 3. Insertar en histórico de estados
@@ -171,6 +173,13 @@ PBX: 601 4321370 extensiones 255 - 142";
                             _logger.LogInformation($"=========================");
                             
                             transaction.Commit();
+                            
+                            // Enviar correo de rechazo después del commit
+                            if (destinatariosParaEnvio.Any())
+                            {
+                                bool correoEnviado = await EnviarCorreoRechazoAsync(destinatariosParaEnvio, asunto, cuerpoCorreo, data.EntidadId);
+                                _logger.LogInformation($"Correo de rechazo enviado: {correoEnviado}");
+                            }
 
                             var response = req.CreateResponse(HttpStatusCode.OK);
                             response.Headers.Add("Content-Type", "application/json");
@@ -192,6 +201,72 @@ PBX: 601 4321370 extensiones 255 - 142";
                 var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
                 await errorResponse.WriteStringAsync("Error interno del servidor");
                 return errorResponse;
+            }
+        }
+
+        private async Task<bool> EnviarCorreoRechazoAsync(List<string> destinatarios, string asunto, string cuerpo, int entidadId)
+        {
+            try
+            {
+                string baseUrl = Environment.GetEnvironmentVariable("CENTRALIZED_EMAIL_URL") ?? "https://app-correo-centralizado-dev-bfbrcqgdgfbbaxhq.eastus2-01.azurewebsites.net";
+                string apiKey = Environment.GetEnvironmentVariable("CENTRALIZED_EMAIL_API_KEY") ?? "envioCorreo-2025";
+
+                using var httpClient = new HttpClient { BaseAddress = new Uri(baseUrl) };
+                httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
+
+                var emailBody = new
+                {
+                    to = destinatarios,
+                    subject = asunto,
+                    htmlBody = $"<p>{cuerpo.Replace("\n", "<br>")}</p>",
+                    textBody = cuerpo,
+                    priority = "normal"
+                };
+
+                string jsonBody = System.Text.Json.JsonSerializer.Serialize(emailBody);
+                var content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
+
+                var response = await httpClient.PostAsync("/api/email/send", content);
+                bool exitoso = response.IsSuccessStatusCode;
+
+                // Registrar en log
+                await RegistrarLogCorreoAsync(entidadId, destinatarios, asunto, cuerpo, exitoso, response.ReasonPhrase);
+
+                return exitoso;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al enviar correo de rechazo");
+                await RegistrarLogCorreoAsync(entidadId, destinatarios, asunto, cuerpo, false, ex.Message);
+                return false;
+            }
+        }
+
+        private async Task RegistrarLogCorreoAsync(int entidadId, List<string> destinatarios, string asunto, string cuerpo, bool exitoso, string? error)
+        {
+            try
+            {
+                string connectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+                using var connection = new SqlConnection(connectionString);
+                await connection.OpenAsync();
+
+                string insertLogQuery = @"
+                    INSERT INTO [SIIR-ProdV1].[dbo].[TM80_LOG_CORREOS]
+                    (TM80_TM02_CODIGO, TM80_NUMERO_TRAMITE, TM80_DESTINATARIOS, TM80_ASUNTO, TM80_CUERPO, TM80_TIPO_CORREO, TM80_ESTADO_ENVIO, TM80_FECHA_ENVIO, TM80_USUARIO, TM80_ERROR_DETALLE)
+                    VALUES (@entidadId, '', @destinatarios, @asunto, @cuerpo, 'RECHAZO_INSCRIPCION', @estado, GETDATE(), 'USUARIOWEB', @error)";
+
+                using var command = new SqlCommand(insertLogQuery, connection);
+                command.Parameters.AddWithValue("@entidadId", entidadId);
+                command.Parameters.AddWithValue("@destinatarios", string.Join(";", destinatarios));
+                command.Parameters.AddWithValue("@asunto", asunto);
+                command.Parameters.AddWithValue("@cuerpo", cuerpo.Length > 4000 ? cuerpo.Substring(0, 4000) : cuerpo);
+                command.Parameters.AddWithValue("@estado", exitoso ? "ENVIADO" : "ERROR");
+                command.Parameters.AddWithValue("@error", (object?)error ?? DBNull.Value);
+                await command.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al registrar log de correo de rechazo");
             }
         }
     }

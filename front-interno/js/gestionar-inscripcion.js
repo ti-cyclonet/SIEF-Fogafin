@@ -222,9 +222,16 @@ async function cargarPagosExistentes(entidadId) {
         `<a href="${getApiUrl(`DescargarArchivo?url=${encodeURIComponent(extracto.archivo)}&inline=1`)}" target="_blank" class="text-primary">Ver archivo</a>` :
         'No disponible';
       
-      newRow.innerHTML = `<td>${fecha}</td><td>${valor}</td><td>${linkArchivo}</td>`;
+      newRow.innerHTML = `
+        <td style="border: 1px solid black; padding: 8px;">${fecha}</td>
+        <td style="border: 1px solid black; padding: 8px;">${valor}</td>
+        <td style="border: 1px solid black; padding: 8px;">${linkArchivo}</td>
+      `;
+      newRow.dataset.valor = extracto.valor;
       tabla.appendChild(newRow);
     });
+    
+    actualizarTotales();
   } catch (error) {
     console.error('Error al cargar extractos existentes:', error);
   }
@@ -520,8 +527,20 @@ function actualizarBotonesGestion(estadoNombre, estadoId) {
   const btnAdjuntarArchivo = document.getElementById('btnAdjuntarArchivo');
   const btnModificarCapital = document.getElementById('btnModificarCapital');
   
+  const userPerfil = localStorage.getItem('userPerfil');
+  const isProfesionalDOT = userPerfil === 'Profesional DOT';
+  
+  // Ocultar botones específicos para Profesional DOT
+  if (isProfesionalDOT) {
+    if (btnAprobarDocumentos) btnAprobarDocumentos.style.display = 'none';
+    if (btnRechazarInscripcion) btnRechazarInscripcion.style.display = 'none';
+  } else {
+    if (btnAprobarDocumentos) btnAprobarDocumentos.style.display = 'inline-block';
+    if (btnRechazarInscripcion) btnRechazarInscripcion.style.display = 'inline-block';
+  }
+  
   // Aprobar documentos solo habilitado para estado 12 (En validación de documentos)
-  if (btnAprobarDocumentos) {
+  if (btnAprobarDocumentos && !isProfesionalDOT) {
     const isEstado12 = estadoId === 12;
     btnAprobarDocumentos.disabled = !isEstado12;
     
@@ -544,7 +563,7 @@ function actualizarBotonesGestion(estadoNombre, estadoId) {
   if (estadoId === 14) {
     if (btnModificarCapital) btnModificarCapital.style.display = 'none';
     if (btnAdjuntarArchivo) btnAdjuntarArchivo.style.display = 'none';
-    if (btnRechazarInscripcion) btnRechazarInscripcion.disabled = true;
+    if (btnRechazarInscripcion && !isProfesionalDOT) btnRechazarInscripcion.disabled = true;
     
     // Ocultar botón y leyenda en pestaña "Información de la inscripción y pago"
     const btnAdjuntarArchivoPago = document.getElementById('btnAdjuntarArchivoPago');
@@ -575,7 +594,7 @@ function actualizarBotonesGestion(estadoNombre, estadoId) {
       }
     }
     
-    if (btnRechazarInscripcion) btnRechazarInscripcion.disabled = false;
+    if (btnRechazarInscripcion && !isProfesionalDOT) btnRechazarInscripcion.disabled = false;
   }
 }
 
@@ -1053,12 +1072,12 @@ function setupEventListeners() {
       }
       
       const { value: observaciones } = await Swal.fire({
-        title: 'Rechazar Inscripción',
-        input: 'textarea',
-        inputLabel: 'Motivo del rechazo (obligatorio)',
-        inputPlaceholder: 'Ingrese el motivo del rechazo...',
+        title: '¿Está seguro de rechazar la solicitud de inscripción?',
+        text: 'Por favor ingrese el motivo del rechazo.',
+        input: 'text',
+        inputPlaceholder: 'Se rechaza por xxxx',
         showCancelButton: true,
-        confirmButtonText: 'Rechazar',
+        confirmButtonText: 'Rechazar inscripción',
         cancelButtonText: 'Cancelar',
         inputValidator: (value) => {
           if (!value || !value.trim()) {
@@ -1120,24 +1139,11 @@ function setupEventListeners() {
     }},
     { id: 'btnConfirmarPago', handler: confirmarPago },
     { id: 'btnAdjuntarComprobante', handler: async () => {
-      // Obtener pagos disponibles
-      const entidadId = obtenerEntidadSeleccionadaId();
-      const detalle = window.currentDetalle;
-      const pagosDisponibles = detalle?.pagos || [];
-      
-      let opcionesPagos = '<option value="">Seleccione el pago...</option>';
-      pagosDisponibles.forEach(pago => {
-        const fecha = new Date(pago.TN06_Fecha).toLocaleDateString('es-CO');
-        const valor = formatearMonedaConDecimales(pago.TN06_Valor);
-        opcionesPagos += `<option value="${pago.TN06_Id}" data-fecha="${pago.TN06_Fecha}" data-valor="${pago.TN06_Valor}">${fecha} - ${valor}</option>`;
-      });
-      
       const { value: formValues } = await Swal.fire({
         title: 'Adjuntar Extracto de Pago',
         html: `
-          <select id="swal-pago" class="swal2-input">
-            ${opcionesPagos}
-          </select>
+          <input id="swal-fecha" class="swal2-input" type="date" placeholder="Fecha de pago" max="${new Date().toISOString().split('T')[0]}">
+          <input id="swal-valor" class="swal2-input" type="number" step="0.01" placeholder="Valor del extracto">
           <div class="file-wrapper" id="swal-archivo-wrapper" style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 0.375rem 0.75rem; background-color: #fff; cursor: pointer; min-height: 38px; margin: 0.5rem 0;">
             <span class="text-muted flex-grow-1" id="swal-archivo-text">Ningún archivo seleccionado</span>
             <span class="badge bg-light text-dark">Seleccionar archivo</span>
@@ -1165,18 +1171,20 @@ function setupEventListeners() {
         confirmButtonText: 'Subir',
         cancelButtonText: 'Cancelar',
         preConfirm: () => {
-          const pagoSelect = document.getElementById('swal-pago');
-          const pagoId = pagoSelect.value;
+          const fecha = document.getElementById('swal-fecha').value;
+          const valor = document.getElementById('swal-valor').value;
           const archivo = document.getElementById('swal-archivo').files[0];
-          if (!pagoId || !archivo) {
-            Swal.showValidationMessage('Debe seleccionar un pago y un archivo');
+          if (!fecha || !valor || !archivo) {
+            Swal.showValidationMessage('Todos los campos son obligatorios');
             return false;
           }
-          const selectedOption = pagoSelect.options[pagoSelect.selectedIndex];
+          if (parseFloat(valor) <= 0) {
+            Swal.showValidationMessage('El valor debe ser mayor a cero');
+            return false;
+          }
           return { 
-            pagoId, 
-            fecha: selectedOption.dataset.fecha,
-            valor: parseFloat(selectedOption.dataset.valor),
+            fecha,
+            valor: parseFloat(valor),
             archivo 
           };
         }
@@ -1196,7 +1204,6 @@ function setupEventListeners() {
             body: JSON.stringify({
               fechaPago: formValues.fecha,
               valor: formValues.valor,
-              pagoId: formValues.pagoId,
               archivoBase64: fileBase64,
               nombreArchivo: formValues.archivo.name,
               usuario: currentUser
@@ -1204,11 +1211,18 @@ function setupEventListeners() {
           });
           
           if (response.ok) {
+            const resultado = await response.json();
             const tabla = document.querySelector('#tablaPagos tbody');
             const newRow = document.createElement('tr');
             const fecha = new Date(formValues.fecha).toLocaleDateString('es-CO');
             const valor = formatearMonedaConDecimales(formValues.valor);
-            newRow.innerHTML = `<td>${fecha}</td><td>${valor}</td><td><a href="#" class="text-primary">Ver archivo</a></td>`;
+            const linkArchivo = `<a href="${getApiUrl(`DescargarArchivo?url=${encodeURIComponent(resultado.url)}&inline=1`)}" target="_blank" class="text-primary">Ver archivo</a>`;
+            newRow.innerHTML = `
+              <td style="border: 1px solid black; padding: 8px;">${fecha}</td>
+              <td style="border: 1px solid black; padding: 8px;">${valor}</td>
+              <td style="border: 1px solid black; padding: 8px;">${linkArchivo}</td>
+            `;
+            newRow.dataset.valor = formValues.valor;
             tabla.appendChild(newRow);
             
             Swal.fire('Éxito', 'Extracto subido correctamente', 'success');
@@ -1399,4 +1413,10 @@ function convertirArchivoABase64(archivo) {
     reader.onerror = reject;
     reader.readAsDataURL(archivo);
   });
+}
+
+// Funciones para manejo de extractos múltiples
+function actualizarTotales() {
+  // Función mantenida para compatibilidad, pero sin elementos visuales
+  // La validación se hace solo al confirmar el pago
 }

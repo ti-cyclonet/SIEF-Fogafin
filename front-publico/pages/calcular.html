@@ -110,7 +110,9 @@
 
       // 🔹 Función de cálculo
       function calcularValor(capital) {
-        return (tasaConfig * capital) / 1000;
+        const resultado = (tasaConfig * capital) / 1000;
+        // Redondear a 2 decimales para evitar problemas de aproximación
+        return Math.round(resultado * 100) / 100;
       }
 
       // 🔹 Formatea un número a moneda con 2 decimales

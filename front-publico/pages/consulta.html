@@ -119,34 +119,32 @@
                         A continuación se presenta el estado de su solicitud:
                     </p>
 
-                    <table class="table table-borderless" style="font-size: 1.1rem;">
-                        <tbody>
-                            <tr>
-                                <td class="fw-semibold text-start" style="width: 40%;">Nombre Entidad:</td>
-                                <td class="text-start">${datos.NombreEntidad}</td>
-                            </tr>
-                            <tr>
-                                <td class="fw-semibold text-start">NIT:</td>
-                                <td class="text-start">${datos.Nit}</td>
-                            </tr>
-                            <tr>
-                                <td class="fw-semibold text-start">Número de trámite:</td>
-                                <td class="text-start">${datos.NumeroTramite}</td>
-                            </tr>
-                            <tr>
-                                <td class="fw-semibold text-start">Estado del trámite:</td>
-                                <td class="text-start text-success"><strong>${datos.EstadoTramite}</strong></td>
-                            </tr>
-                            <tr>
-                                <td class="fw-semibold text-start">Responsable:</td>
-                                <td class="text-start">${datos.NombreResponsable}</td>
-                            </tr>
-                            <tr>
-                                <td class="fw-semibold text-start">Cargo:</td>
-                                <td class="text-start">${datos.CargoResponsable}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="resultado-detalle">
+                        <div class="detalle-row">
+                            <div class="detalle-label">Nombre Entidad:</div>
+                            <div class="detalle-value">${datos.NombreEntidad}</div>
+                        </div>
+                        <div class="detalle-row">
+                            <div class="detalle-label">NIT:</div>
+                            <div class="detalle-value">${datos.Nit}</div>
+                        </div>
+                        <div class="detalle-row">
+                            <div class="detalle-label">Número de trámite:</div>
+                            <div class="detalle-value">${datos.NumeroTramite}</div>
+                        </div>
+                        <div class="detalle-row">
+                            <div class="detalle-label">Estado del trámite:</div>
+                            <div class="detalle-value"><strong>${datos.EstadoTramite}</strong></div>
+                        </div>
+                        <div class="detalle-row">
+                            <div class="detalle-label">Responsable:</div>
+                            <div class="detalle-value">${datos.NombreResponsable}</div>
+                        </div>
+                        <div class="detalle-row">
+                            <div class="detalle-label">Cargo:</div>
+                            <div class="detalle-value">${datos.CargoResponsable}</div>
+                        </div>
+                    </div>
 
                     <div class="text-center mt-5">
                         <button type="button" id="btnCerrarResultado" class="btn btn-lg btn-dark">Cerrar</button>

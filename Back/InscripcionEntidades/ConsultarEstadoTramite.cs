@@ -59,8 +59,8 @@ public class ConsultarEstadoTramite
 
         // Para este ejemplo, usaremos el NIT y reconstruiremos el número de trámite esperado
 
-        // Extraemos el consecutivo, tipo, y año del número de trámite
-        if (!int.TryParse(numeroTramite.Substring(0, numeroTramite.Length - 5), out int consecutivo))
+        // Validación básica del número de trámite
+        if (string.IsNullOrEmpty(numeroTramite) || numeroTramite.Length < 5)
         {
             _logger.LogWarning($"Formato de número de trámite inválido: {numeroTramite}");
             var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
@@ -129,7 +129,9 @@ public class ConsultarEstadoTramite
                     dbo.TM01_Estado TM1 ON TM2.TM02_TM01_CODIGO = TM1.TM01_Codigo
                 WHERE 
                     TM2.TM02_NIT = @Nit AND 
-                    TM2.TM02_TM08_Consecutivo = @Consecutivo
+                    (CAST(TM2.TM02_TM08_Consecutivo AS VARCHAR) + 
+                     CAST(TM2.TM02_TM01_CodigoSectorF AS VARCHAR) + 
+                     CAST(YEAR(TM2.TM02_FECHAINSCRIPCION) AS VARCHAR)) = @NumeroTramite
                 ORDER BY 
                     TM2.TM02_Fecha DESC;";
 
@@ -138,8 +140,7 @@ public class ConsultarEstadoTramite
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
                     cmd.Parameters.AddWithValue("@Nit", nit);
-                    // Usaremos solo el consecutivo para hacer la búsqueda más robusta y evitamos el riesgo de formato de string.
-                    cmd.Parameters.AddWithValue("@Consecutivo", consecutivo);
+                    cmd.Parameters.AddWithValue("@NumeroTramite", numeroTramite);
 
                     using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                     {

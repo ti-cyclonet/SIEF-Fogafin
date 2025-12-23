@@ -791,9 +791,17 @@
         const capital = parseFloat(capitalSuscritoInput.dataset.valor) || 0;
         const valorPagado = parseFloat(valorPagadoInput.dataset.valor) || 0;
         const esperado = (capital * 0.115) / 1000;
-        const diferencia = Math.abs(valorPagado - esperado);
-
-        if (diferencia > 0.00001) {
+        
+        // Permitir tanto el valor exacto como el redondeado
+        const esperadoRedondeado = Math.round(esperado * 100) / 100;
+        const diferenciaExacta = Math.abs(valorPagado - esperado);
+        const diferenciaRedondeada = Math.abs(valorPagado - esperadoRedondeado);
+        
+        // Aceptar si está cerca del valor exacto O del valor redondeado
+        const toleranciaExacta = 0.01; // 1 centavo
+        const toleranciaRedondeada = 0.01; // 1 centavo
+        
+        if (diferenciaExacta > toleranciaExacta && diferenciaRedondeada > toleranciaRedondeada) {
           // Mostrar error visual en el campo Valor pagado
           valorPagadoInput.style.setProperty('border', '1px solid #dc3545', 'important');
           const container = valorPagadoInput.closest('.col-md-8');
@@ -804,7 +812,9 @@
           errorDiv.style.color = '#dc3545';
           errorDiv.style.fontSize = '0.875rem';
           errorDiv.style.marginTop = '0.5rem';
-          errorDiv.textContent = `Debe ser 0.115 por mil del capital suscrito (${formatearMonedaConDecimales(esperado)})`;
+          // Mostrar el valor más apropiado en el mensaje de error
+          const valorMostrar = Math.abs(esperado - esperadoRedondeado) < 0.01 ? esperadoRedondeado : esperado;
+          errorDiv.textContent = `Debe ser 0.115 por mil del capital suscrito (${formatearMonedaConDecimales(valorMostrar)})`;
           container.appendChild(errorDiv);
           
           valorPagadoInput.focus();

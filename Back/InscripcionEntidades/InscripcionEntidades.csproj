@@ -23,6 +23,7 @@
 	<ItemGroup>
 		<None Update="host.json" CopyToOutputDirectory="PreserveNewest" />
 		<None Update="local.settings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+		<None Update="assets\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 	</ItemGroup>
 
 </Project>

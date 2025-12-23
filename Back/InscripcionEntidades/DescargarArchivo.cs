@@ -71,7 +71,9 @@ namespace InscripcionEntidades
                     ? "inline"
                     : "attachment";
                     
-                response.Headers.Add("Content-Disposition", $"{disposition}; filename=\"{Path.GetFileName(blobName)}\"");
+                var fileName = Path.GetFileName(blobName);
+                var encodedFileName = Uri.EscapeDataString(fileName);
+                response.Headers.Add("Content-Disposition", $"{disposition}; filename*=UTF-8''{encodedFileName}");
 
                 await blobDownloadInfo.Value.Content.CopyToAsync(response.Body);
                 return response;
