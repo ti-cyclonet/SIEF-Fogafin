@@ -82,7 +82,7 @@ public class ConsultarEstadoTramite
                     TM2.TM02_NIT AS Nit,
                     CAST(TM2.TM02_TM08_Consecutivo AS VARCHAR) + 
                     CAST(TM2.TM02_TM01_CodigoSectorF AS VARCHAR) + 
-                    CAST(YEAR(TM2.TM02_FECHAINSCRIPCION) AS VARCHAR) AS NumeroTramiteCalculado,
+                    CAST(YEAR(TM2.TM02_Fecha) AS VARCHAR) AS NumeroTramiteCalculado,
                     TM1.TM01_Nombre AS EstadoTramite,
                     CASE 
                         WHEN TM1.TM01_Nombre = 'En validación de documentos' THEN 
@@ -131,7 +131,7 @@ public class ConsultarEstadoTramite
                     TM2.TM02_NIT = @Nit AND 
                     (CAST(TM2.TM02_TM08_Consecutivo AS VARCHAR) + 
                      CAST(TM2.TM02_TM01_CodigoSectorF AS VARCHAR) + 
-                     CAST(YEAR(TM2.TM02_FECHAINSCRIPCION) AS VARCHAR)) = @NumeroTramite
+                     CAST(YEAR(TM2.TM02_Fecha) AS VARCHAR)) = @NumeroTramite
                 ORDER BY 
                     TM2.TM02_Fecha DESC;";
 
